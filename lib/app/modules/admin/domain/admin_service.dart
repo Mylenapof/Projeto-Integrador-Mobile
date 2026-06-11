@@ -8,33 +8,43 @@ import 'package:lourenco_confeitaria_app/app/modules/produto/data/product_model.
 import 'package:lourenco_confeitaria_app/app/modules/produto/data/product_repository.dart';
 
 class AdminService {
-  final _db               = DatabaseHelper.instance;
-  final _recompensaRepo   = RecompensaRepository();
-  final _productRepo      = ProductRepository();
-  final _logger           = LogService();
-
-  // ── Login Admin ───────────────────────────────────────────
+  final _db = DatabaseHelper.instance;
+  final _recompensaRepo = RecompensaRepository();
+  final _productRepo = ProductRepository();
+  final _logger = LogService();
   Future<bool> login(String email, String senha) async {
     try {
       final db = await _db.database;
-      final result = await db.query(
+
+      final todosAdmins = await db.query('admins');
+
+      print("========= ADMINS NO BANCO =========");
+      print(todosAdmins);
+
+      print("EMAIL DIGITADO: $email");
+      print("SENHA DIGITADA: $senha");
+
+      final resultado = await db.query(
         'admins',
         where: 'email = ? AND senha = ?',
-        whereArgs: [email, senha],
-        limit: 1,
+        whereArgs: [
+          email.trim(),
+          senha.trim(),
+        ],
       );
-      final ok = result.isNotEmpty;
-      _logger.info('AdminService', 'login', ok ? 'Login admin ok' : 'Login admin falhou');
-      return ok;
+
+      print("========= RESULTADO LOGIN =========");
+      print(resultado);
+
+      return resultado.isNotEmpty;
     } catch (e) {
-      _logger.error('AdminService', 'login', e.toString());
+      print("ERRO LOGIN: $e");
       return false;
     }
   }
 
   // ── Produtos ─────────────────────────────────────────────
-  Future<List<ProductModel>> getProdutos() =>
-      _productRepo.findAll();
+  Future<List<ProductModel>> getProdutos() => _productRepo.findAll();
 
   Future<String?> salvarProduto(ProductModel produto) async {
     try {
@@ -43,7 +53,8 @@ class AdminService {
       } else {
         await _productRepo.update(produto);
       }
-      _logger.info('AdminService', 'salvarProduto', 'Produto salvo: ${produto.nome}');
+      _logger.info(
+          'AdminService', 'salvarProduto', 'Produto salvo: ${produto.nome}');
       return null;
     } catch (e) {
       _logger.error('AdminService', 'salvarProduto', e.toString());
@@ -61,8 +72,7 @@ class AdminService {
   }
 
   // ── Recompensas ───────────────────────────────────────────
-  Future<List<RecompensaModel>> getRecompensas() =>
-      _recompensaRepo.findAll();
+  Future<List<RecompensaModel>> getRecompensas() => _recompensaRepo.findAll();
 
   Future<String?> salvarRecompensa(RecompensaModel recompensa) async {
     try {

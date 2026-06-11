@@ -9,7 +9,7 @@ import '../../../../shared/widgets/dialogs/custom_confirm_dialog.dart';
 import '../../../admin/data/recompensa_model.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/cart_controller.dart';
-import '../controllers/points_controller.dart';
+import '../../../fidelidade/presentation/controllers/points_controller.dart';
 
 class CarrinhoPage extends ConsumerStatefulWidget {
   const CarrinhoPage({super.key});

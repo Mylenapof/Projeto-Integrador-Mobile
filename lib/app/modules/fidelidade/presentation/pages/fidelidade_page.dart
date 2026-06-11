@@ -9,7 +9,7 @@ import '../../../../shared/widgets/drawer/custom_app_drawer.dart';
 import '../../../../shared/widgets/buttons/custom_primary_button.dart';
 import '../../../admin/data/recompensa_model.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import '../controllers/points_controller.dart';
+import '../../../fidelidade/presentation/controllers/points_controller.dart';
 
 class FidelidadePage extends ConsumerStatefulWidget {
   const FidelidadePage({super.key});
@@ -80,7 +80,6 @@ class _FidelidadePageState extends ConsumerState<FidelidadePage>
   }
 
   Widget _buildConteudo(int pontos, List<RecompensaModel> recompensas) {
-    // Próxima meta
     final proxima = recompensas.isEmpty
         ? null
         : recompensas.cast<RecompensaModel?>().firstWhere(
@@ -113,7 +112,6 @@ class _FidelidadePageState extends ConsumerState<FidelidadePage>
           ),
           const SizedBox(height: AppSizes.lg),
 
-          // Card de pontos
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSizes.lg),

@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../data/sweet_points_model.dart';
 import '../../domain/points_service.dart';
-
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../admin/data/recompensa_model.dart';
+import '../../../admin/data/recompensa_repository.dart';
 
 class PointsController extends StateNotifier<SweetPointsModel?> {
   final PointsService _service;
@@ -43,4 +43,9 @@ final pointsControllerProvider =
     StateNotifierProvider<PointsController, SweetPointsModel?>((ref) {
   final user = ref.watch(authControllerProvider);
   return PointsController(ref.read(pointsServiceProvider), user?.id);
+});
+
+// Provider de recompensas ativas do banco
+final recompensasProvider = FutureProvider<List<RecompensaModel>>((ref) async {
+  return RecompensaRepository().findAtivas();
 });
