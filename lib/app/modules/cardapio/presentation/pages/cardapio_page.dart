@@ -51,7 +51,7 @@ class _CardapioPageState extends ConsumerState<CardapioPage> with MessagesMixin 
             tooltip: 'Busca Inteligente',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const BuscaIAPage()),
+               MaterialPageRoute(builder: (_) => const BuscaIAPage()),
             ),
           ),
         ],

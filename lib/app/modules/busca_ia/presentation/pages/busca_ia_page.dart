@@ -399,4 +399,4 @@ class _CardSugestao extends StatelessWidget {
       ),
     );
   }
-}
+} 

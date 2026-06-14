@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../../core/mixins/messages_mixin.dart';
 import '../../../../core/logging/log_service.dart';
-
 import '../../data/user_model.dart';
 import '../../domain/auth_service.dart';
 
@@ -18,15 +16,15 @@ class AuthController extends StateNotifier<UserModel?> with MessagesMixin {
   Future<void> _inicializar() async {
     final user = await _service.carregarSessao();
     state = user;
-    _logger.info('AuthController', '_inicializar',
-        user != null ? 'Sessão restaurada: ${user.email}' : 'Sem sessão ativa');
   }
 
-  Future<String?> login(BuildContext context, String email, String senha) async {
-    final (user, error) = await _service.login(email, senha);
-    if (error != null) return error;
+  // Retorna: (erro, isAdmin)
+  Future<(String?, bool)> login(BuildContext context, String email, String senha) async {
+    final (user, error, isAdmin) = await _service.login(email, senha);
+    if (error != null) return (error, false);
+    if (isAdmin) return (null, true);   // ← sinaliza que é admin
     state = user;
-    return null;
+    return (null, false);
   }
 
   Future<String?> cadastrar(
@@ -46,7 +44,6 @@ class AuthController extends StateNotifier<UserModel?> with MessagesMixin {
   UserModel? get usuario => state;
 }
 
-// ── Providers ─────────────────────────────────────────────
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final authControllerProvider =

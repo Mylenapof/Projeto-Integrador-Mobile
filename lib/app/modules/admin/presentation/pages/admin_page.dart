@@ -7,7 +7,8 @@ import '../../../../shared/widgets/dialogs/custom_confirm_dialog.dart';
 import '../controllers/admin_controller.dart';
 import 'package:lourenco_confeitaria_app/app/modules/produto/data/product_model.dart';
 import '../../data/recompensa_model.dart';
-
+import 'relatorio_page.dart';
+import '../../../auth/presentation/pages/login_page.dart';
 class AdminPage extends ConsumerStatefulWidget {
   const AdminPage({super.key});
 
@@ -18,8 +19,8 @@ class AdminPage extends ConsumerStatefulWidget {
 class _AdminPageState extends ConsumerState<AdminPage>
     with SingleTickerProviderStateMixin, MessagesMixin {
   late TabController _tabController;
-  List<ProductModel>    _produtos     = [];
-  List<RecompensaModel> _recompensas  = [];
+  List<ProductModel> _produtos = [];
+  List<RecompensaModel> _recompensas = [];
   bool _carregando = false;
 
   @override
@@ -38,7 +39,7 @@ class _AdminPageState extends ConsumerState<AdminPage>
   Future<void> _carregar() async {
     setState(() => _carregando = true);
     final admin = ref.read(adminControllerProvider.notifier);
-    _produtos    = await admin.getProdutos();
+    _produtos = await admin.getProdutos();
     _recompensas = await admin.getRecompensas();
     if (mounted) setState(() => _carregando = false);
   }
@@ -55,9 +56,8 @@ class _AdminPageState extends ConsumerState<AdminPage>
       builder: (_) => _FormProduto(
         produto: produto,
         onSalvar: (p) async {
-          final erro = await ref
-              .read(adminControllerProvider.notifier)
-              .salvarProduto(p);
+          final erro =
+              await ref.read(adminControllerProvider.notifier).salvarProduto(p);
           if (!mounted) return;
           Navigator.pop(context);
           if (erro != null) {
@@ -145,14 +145,123 @@ class _AdminPageState extends ConsumerState<AdminPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: Drawer(
+        backgroundColor: AppColors.surface,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 52, 16, 16),
+              color: AppColors.surface,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: AppColors.surface,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Admin',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.primary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _DrawerAdminItem(
+                    icon: Icons.cake_outlined,
+                    label: 'Produtos',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _tabController.animateTo(0);
+                    },
+                  ),
+                  _DrawerAdminItem(
+                    icon: Icons.star_outline,
+                    label: 'Recompensas',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _tabController.animateTo(1);
+                    },
+                  ),
+                  _DrawerAdminItem(
+                    icon: Icons.bar_chart,
+                    label: 'Relatório de Vendas',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RelatorioPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ref.read(adminControllerProvider.notifier).logout();
+                    Navigator.pop(context); // fecha drawer
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LoginPage(),
+                      ),
+                      (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.logout, color: AppColors.error),
+                  label: const Text(
+                    'Sair',
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () {
-            ref.read(adminControllerProvider.notifier).logout();
-            Navigator.pop(context);
-          },
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu, color: AppColors.primary),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         title: const Text(
           'Painel Admin',
@@ -161,19 +270,31 @@ class _AdminPageState extends ConsumerState<AdminPage>
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart, color: AppColors.primary),
+            tooltip: 'Relatório de Vendas',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RelatorioPage()),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
           indicatorColor: AppColors.primary,
           tabs: const [
-            Tab(icon: Icon(Icons.cake_outlined),     text: 'Produtos'),
-            Tab(icon: Icon(Icons.star_outline),      text: 'Recompensas'),
+            Tab(icon: Icon(Icons.cake_outlined), text: 'Produtos'),
+            Tab(icon: Icon(Icons.star_outline), text: 'Recompensas'),
           ],
         ),
       ),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : TabBarView(
               controller: _tabController,
               children: [
@@ -198,8 +319,10 @@ class _AdminPageState extends ConsumerState<AdminPage>
   Widget _buildProdutos() {
     if (_produtos.isEmpty) {
       return const Center(
-        child: Text('Nenhum produto cadastrado',
-            style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'Nenhum produto cadastrado',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
     return ListView.separated(
@@ -217,13 +340,16 @@ class _AdminPageState extends ConsumerState<AdminPage>
           ),
           child: Row(
             children: [
-              // Imagem ou placeholder
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 child: p.imagemUrl != null
-                    ? Image.network(p.imagemUrl!,
-                        width: 56, height: 56, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholderImg())
+                    ? Image.network(
+                        p.imagemUrl!,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholderImg(),
+                      )
                     : _placeholderImg(),
               ),
               const SizedBox(width: AppSizes.sm + 4),
@@ -231,11 +357,13 @@ class _AdminPageState extends ConsumerState<AdminPage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.nome,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        )),
+                    Text(
+                      p.nome,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                     Text(
                       'R\$ ${p.preco.toStringAsFixed(2).replaceAll('.', ',')}',
                       style: const TextStyle(
@@ -247,9 +375,8 @@ class _AdminPageState extends ConsumerState<AdminPage>
                       p.disponivel ? 'Disponível' : 'Indisponível',
                       style: TextStyle(
                         fontSize: AppSizes.fontXs,
-                        color: p.disponivel
-                            ? AppColors.success
-                            : AppColors.error,
+                        color:
+                            p.disponivel ? AppColors.success : AppColors.error,
                       ),
                     ),
                   ],
@@ -273,8 +400,10 @@ class _AdminPageState extends ConsumerState<AdminPage>
   Widget _buildRecompensas() {
     if (_recompensas.isEmpty) {
       return const Center(
-        child: Text('Nenhuma recompensa cadastrada',
-            style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'Nenhuma recompensa cadastrada',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
     return ListView.separated(
@@ -300,18 +429,21 @@ class _AdminPageState extends ConsumerState<AdminPage>
                   color: AppColors.surfacePink,
                   borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 ),
-                child: const Icon(Icons.star, color: AppColors.primary, size: 24),
+                child:
+                    const Icon(Icons.star, color: AppColors.primary, size: 24),
               ),
               const SizedBox(width: AppSizes.sm + 4),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.descricao,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        )),
+                    Text(
+                      r.descricao,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                     Text(
                       '${r.pontos} pontos • ${r.desconto.toStringAsFixed(0)}% desconto',
                       style: const TextStyle(
@@ -345,11 +477,43 @@ class _AdminPageState extends ConsumerState<AdminPage>
   }
 
   Widget _placeholderImg() => Container(
-    width: 56, height: 56,
-    color: AppColors.surfacePink,
-    child: const Icon(Icons.cake_outlined,
-        color: AppColors.primaryLight, size: 28),
-  );
+        width: 56,
+        height: 56,
+        color: AppColors.surfacePink,
+        child: const Icon(Icons.cake_outlined,
+            color: AppColors.primaryLight, size: 28),
+      );
+}
+
+// ── Drawer Item ───────────────────────────────────────────
+class _DrawerAdminItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _DrawerAdminItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.textSecondary),
+        title: Text(
+          label,
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
 }
 
 // ── Form Produto ──────────────────────────────────────────
@@ -364,17 +528,22 @@ class _FormProduto extends StatefulWidget {
 }
 
 class _FormProdutoState extends State<_FormProduto> {
-  final _nomeController      = TextEditingController();
+  final _nomeController = TextEditingController();
   final _descricaoController = TextEditingController();
-  final _precoController     = TextEditingController();
-  final _imagemController    = TextEditingController();
-  int  _categoriaSelecionada = 1;
-  bool _disponivel           = true;
+  final _precoController = TextEditingController();
+  final _imagemController = TextEditingController();
+  int _categoriaSelecionada = 1;
+  bool _disponivel = true;
 
   static const _categorias = {
-    1: 'Cupcakes', 2: 'Bolos', 3: 'Macarons',
-    4: 'Tortas Doces', 5: 'Salgados', 6: 'Donuts',
-    7: 'Docinhos', 8: 'Especiais',
+    1: 'Cupcakes',
+    2: 'Bolos',
+    3: 'Macarons',
+    4: 'Tortas Doces',
+    5: 'Salgados',
+    6: 'Donuts',
+    7: 'Docinhos',
+    8: 'Especiais',
   };
 
   @override
@@ -382,12 +551,12 @@ class _FormProdutoState extends State<_FormProduto> {
     super.initState();
     if (widget.produto != null) {
       final p = widget.produto!;
-      _nomeController.text      = p.nome;
+      _nomeController.text = p.nome;
       _descricaoController.text = p.descricao;
-      _precoController.text     = p.preco.toStringAsFixed(2);
-      _imagemController.text    = p.imagemUrl ?? '';
-      _categoriaSelecionada     = p.categoryId;
-      _disponivel               = p.disponivel;
+      _precoController.text = p.preco.toStringAsFixed(2);
+      _imagemController.text = p.imagemUrl ?? '';
+      _categoriaSelecionada = p.categoryId;
+      _disponivel = p.disponivel;
     }
   }
 
@@ -404,7 +573,9 @@ class _FormProdutoState extends State<_FormProduto> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: AppSizes.md, right: AppSizes.md, top: AppSizes.md,
+        left: AppSizes.md,
+        right: AppSizes.md,
+        top: AppSizes.md,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSizes.md,
       ),
       child: SingleChildScrollView(
@@ -457,25 +628,33 @@ class _FormProdutoState extends State<_FormProduto> {
             const SizedBox(height: AppSizes.sm + 4),
             _campo(_descricaoController, 'Descrição'),
             const SizedBox(height: AppSizes.sm + 4),
-            _campo(_precoController, 'Preço (ex: 12.90)',
-                tipo: TextInputType.number),
+            _campo(
+              _precoController,
+              'Preço (ex: 12.90)',
+              tipo: TextInputType.number,
+            ),
             const SizedBox(height: AppSizes.sm + 4),
-            _campo(_imagemController, 'URL da imagem',
-                hint: 'https://...', onChanged: (_) => setState(() {})),
+            _campo(
+              _imagemController,
+              'URL da imagem',
+              hint: 'https://...',
+              onChanged: (_) => setState(() {}),
+            ),
             const SizedBox(height: AppSizes.sm + 4),
 
-            // Categoria
             DropdownButtonFormField<int>(
               value: _categoriaSelecionada,
               decoration: _inputDecoration('Categoria'),
-              items: _categorias.entries.map((e) =>
-                DropdownMenuItem(value: e.key, child: Text(e.value))
-              ).toList(),
+              items: _categorias.entries
+                  .map((e) => DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value),
+                      ))
+                  .toList(),
               onChanged: (v) => setState(() => _categoriaSelecionada = v!),
             ),
             const SizedBox(height: AppSizes.sm + 4),
 
-            // Disponível
             Row(
               children: [
                 const Text('Disponível',
@@ -496,18 +675,21 @@ class _FormProdutoState extends State<_FormProduto> {
               child: ElevatedButton(
                 onPressed: () {
                   final preco = double.tryParse(
-                    _precoController.text.replaceAll(',', '.')) ?? 0;
+                        _precoController.text.replaceAll(',', '.'),
+                      ) ??
+                      0;
                   widget.onSalvar(ProductModel(
-                    id:          widget.produto?.id,
-                    nome:        _nomeController.text.trim(),
-                    descricao:   _descricaoController.text.trim(),
-                    preco:       preco,
-                    imagemUrl:   _imagemController.text.trim().isEmpty
-                                   ? null : _imagemController.text.trim(),
-                    categoryId:  _categoriaSelecionada,
-                    disponivel:  _disponivel,
-                    createdAt:   widget.produto?.createdAt ??
-                                   DateTime.now().toIso8601String(),
+                    id: widget.produto?.id,
+                    nome: _nomeController.text.trim(),
+                    descricao: _descricaoController.text.trim(),
+                    preco: preco,
+                    imagemUrl: _imagemController.text.trim().isEmpty
+                        ? null
+                        : _imagemController.text.trim(),
+                    categoryId: _categoriaSelecionada,
+                    disponivel: _disponivel,
+                    createdAt: widget.produto?.createdAt ??
+                        DateTime.now().toIso8601String(),
                   ));
                 },
                 child: const Text('Salvar'),
@@ -520,10 +702,13 @@ class _FormProdutoState extends State<_FormProduto> {
     );
   }
 
-  Widget _campo(TextEditingController ctrl, String label,
-      {TextInputType tipo = TextInputType.text,
-      String? hint,
-      void Function(String)? onChanged}) {
+  Widget _campo(
+    TextEditingController ctrl,
+    String label, {
+    TextInputType tipo = TextInputType.text,
+    String? hint,
+    void Function(String)? onChanged,
+  }) {
     return TextFormField(
       controller: ctrl,
       keyboardType: tipo,
@@ -568,8 +753,8 @@ class _FormRecompensa extends StatefulWidget {
 
 class _FormRecompensaState extends State<_FormRecompensa> {
   final _descricaoController = TextEditingController();
-  final _pontosController    = TextEditingController();
-  final _descontoController  = TextEditingController();
+  final _pontosController = TextEditingController();
+  final _descontoController = TextEditingController();
   bool _ativo = true;
 
   @override
@@ -578,9 +763,9 @@ class _FormRecompensaState extends State<_FormRecompensa> {
     if (widget.recompensa != null) {
       final r = widget.recompensa!;
       _descricaoController.text = r.descricao;
-      _pontosController.text    = r.pontos.toString();
-      _descontoController.text  = r.desconto.toStringAsFixed(0);
-      _ativo                    = r.ativo;
+      _pontosController.text = r.pontos.toString();
+      _descontoController.text = r.desconto.toStringAsFixed(0);
+      _ativo = r.ativo;
     }
   }
 
@@ -617,7 +802,9 @@ class _FormRecompensaState extends State<_FormRecompensa> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: AppSizes.md, right: AppSizes.md, top: AppSizes.md,
+        left: AppSizes.md,
+        right: AppSizes.md,
+        top: AppSizes.md,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSizes.md,
       ),
       child: SingleChildScrollView(
@@ -630,7 +817,8 @@ class _FormRecompensaState extends State<_FormRecompensa> {
               children: [
                 Text(
                   widget.recompensa == null
-                      ? 'Nova Recompensa' : 'Editar Recompensa',
+                      ? 'Nova Recompensa'
+                      : 'Editar Recompensa',
                   style: const TextStyle(
                     fontSize: AppSizes.fontXl,
                     fontWeight: FontWeight.w700,
@@ -644,7 +832,6 @@ class _FormRecompensaState extends State<_FormRecompensa> {
               ],
             ),
             const SizedBox(height: AppSizes.md),
-
             TextFormField(
               controller: _descricaoController,
               decoration: _inputDecoration('Descrição (ex: 10% OFF)'),
@@ -662,7 +849,6 @@ class _FormRecompensaState extends State<_FormRecompensa> {
               decoration: _inputDecoration('Desconto % (ex: 10)'),
             ),
             const SizedBox(height: AppSizes.sm + 4),
-
             Row(
               children: [
                 const Text('Ativa',
@@ -676,20 +862,19 @@ class _FormRecompensaState extends State<_FormRecompensa> {
               ],
             ),
             const SizedBox(height: AppSizes.md),
-
             SizedBox(
               width: double.infinity,
               height: AppSizes.buttonHeight,
               child: ElevatedButton(
                 onPressed: () {
                   widget.onSalvar(RecompensaModel(
-                    id:        widget.recompensa?.id,
+                    id: widget.recompensa?.id,
                     descricao: _descricaoController.text.trim(),
-                    pontos:    int.tryParse(_pontosController.text) ?? 0,
-                    desconto:  double.tryParse(_descontoController.text) ?? 0,
-                    ativo:     _ativo,
+                    pontos: int.tryParse(_pontosController.text) ?? 0,
+                    desconto: double.tryParse(_descontoController.text) ?? 0,
+                    ativo: _ativo,
                     createdAt: widget.recompensa?.createdAt ??
-                               DateTime.now().toIso8601String(),
+                        DateTime.now().toIso8601String(),
                   ));
                 },
                 child: const Text('Salvar'),

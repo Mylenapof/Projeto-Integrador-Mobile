@@ -8,6 +8,7 @@ import '../../../../shared/widgets/buttons/custom_primary_button.dart';
 import '../../../../shared/widgets/buttons/custom_outlined_button.dart';
 import '../../../../shared/widgets/forms/custom_text_field.dart';
 import '../controllers/auth_controller.dart';
+import '../../../admin/presentation/pages/admin_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -46,22 +47,28 @@ class _LoginPageState extends ConsumerState<LoginPage>
     super.dispose();
   }
 
-  Future<void> _fazerLogin() async {
-    setState(() => _carregando = true);
-    final erro = await ref.read(authControllerProvider.notifier).login(
-      context,
-      _emailLoginController.text.trim(),
-      _senhaLoginController.text,
-    );
-    if (!mounted) return;
-    setState(() => _carregando = false);
+Future<void> _fazerLogin() async {
+  setState(() => _carregando = true);
+  final (erro, isAdmin) = await ref.read(authControllerProvider.notifier).login(
+    context,
+    _emailLoginController.text.trim(),
+    _senhaLoginController.text,
+  );
+  if (!mounted) return;
+  setState(() => _carregando = false);
 
-    if (erro != null) {
-      showError(context, erro);
-    } else {
-      context.go('/home');
-    }
+  if (erro != null) {
+    showError(context, erro);
+  } else if (isAdmin) {
+    // Admin vai direto para o painel, sem passar pela home
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AdminPage()),
+    );
+  } else {
+    context.go('/home');
   }
+}
 
   Future<void> _fazerCadastro() async {
     setState(() => _carregando = true);

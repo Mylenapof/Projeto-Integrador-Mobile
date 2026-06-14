@@ -10,7 +10,7 @@ import '../../../admin/data/recompensa_model.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/cart_controller.dart';
 import '../../../fidelidade/presentation/controllers/points_controller.dart';
-
+import '../../../admin/data/venda_repository.dart';
 class CarrinhoPage extends ConsumerStatefulWidget {
   const CarrinhoPage({super.key});
 
@@ -37,24 +37,43 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
   }
 
   Future<void> _finalizarPedido(double total) async {
-    // Deduz pontos se usou recompensa
-    if (_recompensaSelecionada != null) {
-      await ref
-          .read(pointsControllerProvider.notifier)
-          .resgatar(_recompensaSelecionada!.pontos);
-    }
+  final user  = ref.read(authControllerProvider);
+  final itens = ref.read(cartControllerProvider);
+  if (user == null) return;
 
-    // Adiciona pontos pela compra (1 ponto por real gasto)
-    final pontosGanhos = total.toInt();
-    await ref.read(pointsControllerProvider.notifier).adicionar(pontosGanhos);
+  // Registra a venda no histórico
+  await VendaRepository().registrarVenda(
+    userId:   user.id!,
+    total:    total,
+    desconto: _recompensaSelecionada?.desconto ?? 0,
+    origem:   'carrinho',
+    itens: itens.map((i) => {
+      'product_id':  i.productId,
+      'nome':        i.produtoNome ?? '',
+      'preco':       i.produtoPreco ?? 0,
+      'quantidade':  i.quantidade,
+      'category_id': 0,
+    }).toList(),
+  );
 
-    await ref.read(cartControllerProvider.notifier).limpar();
-    setState(() => _recompensaSelecionada = null);
-
-    if (!mounted) return;
-    showSuccess(context,
-        'Pedido realizado! +$pontosGanhos Sweet Points adicionados!');
+  // Deduz pontos se usou recompensa
+  if (_recompensaSelecionada != null) {
+    await ref
+        .read(pointsControllerProvider.notifier)
+        .resgatar(_recompensaSelecionada!.pontos);
   }
+
+  // Adiciona pontos pela compra
+  final pontosGanhos = total.toInt();
+  await ref.read(pointsControllerProvider.notifier).adicionar(pontosGanhos);
+
+  await ref.read(cartControllerProvider.notifier).limpar();
+  setState(() => _recompensaSelecionada = null);
+
+  if (!mounted) return;
+  showSuccess(context,
+      'Pedido realizado! +$pontosGanhos Sweet Points adicionados!');
+}
 
   @override
   Widget build(BuildContext context) {

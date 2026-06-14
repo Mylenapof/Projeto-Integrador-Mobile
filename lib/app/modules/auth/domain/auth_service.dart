@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/base/base_service.dart';
+import '../../../core/helpers/database_helper.dart';
 import '../../../core/logging/log_service.dart';
 import '../data/user_model.dart';
 import '../data/user_repository.dart';
@@ -7,25 +8,42 @@ import '../domain/user_validation.dart';
 
 class AuthService extends BaseService<UserModel, UserRepository, UserValidation> {
   final LogService _logger = LogService();
+  final _db = DatabaseHelper.instance;
 
   AuthService()
       : super(UserRepository(), UserValidation(UserRepository()));
 
-  // ── Login ─────────────────────────────────────────────────
-  Future<(UserModel?, String?)> login(String email, String senha) async {
+  // ── Login — verifica admin primeiro, depois usuário ───────
+  Future<(UserModel?, String?, bool isAdmin)> login(String email, String senha) async {
     final validationError = await validation.validateLogin(email, senha);
-    if (validationError != null) return (null, validationError);
+    if (validationError != null) return (null, validationError, false);
 
     try {
+      // 1) Verifica na tabela admins
+      final db = await _db.database;
+      final adminResult = await db.query(
+        'admins',
+        where: 'email = ? AND senha = ?',
+        whereArgs: [email.trim(), senha.trim()],
+        limit: 1,
+      );
+
+      if (adminResult.isNotEmpty) {
+        _logger.info('AuthService', 'login', 'Login admin: $email');
+        // Admin não precisa de sessão de usuário
+        return (null, null, true);
+      }
+
+      // 2) Verifica na tabela users
       final user = await repository.findByEmailAndSenha(email, senha);
-      if (user == null) return (null, 'E-mail ou senha incorretos');
+      if (user == null) return (null, 'E-mail ou senha incorretos', false);
 
       await _salvarSessao(user.id!);
-      _logger.info('AuthService', 'login', 'Login realizado: ${user.email}');
-      return (user, null);
+      _logger.info('AuthService', 'login', 'Login usuário: ${user.email}');
+      return (user, null, false);
     } catch (e) {
       _logger.error('AuthService', 'login', e.toString());
-      return (null, 'Erro ao fazer login');
+      return (null, 'Erro ao fazer login', false);
     }
   }
 

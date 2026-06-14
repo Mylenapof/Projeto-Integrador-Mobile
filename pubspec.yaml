@@ -25,15 +25,16 @@ dependencies:
 
   # HTTP client
   dio: ^5.4.0
+  http: ^1.2.0
 
-  # Conectividade (para sincronização offline-first)
+  # IA - Google Gemini
+  google_generative_ai: ^0.4.3
+
+  # Conectividade
   connectivity_plus: ^6.0.0
 
   # Links externos
   url_launcher: ^6.2.0
-
-    # IA - Google Gemini
-  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
