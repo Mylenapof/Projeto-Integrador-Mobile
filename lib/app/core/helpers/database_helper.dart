@@ -139,15 +139,16 @@ class DatabaseHelper {
     ''');
 
     await _seedData(db);
-    await db.execute('''
+await db.execute('''
   CREATE TABLE vendas (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id    INTEGER NOT NULL,
-    total      REAL    NOT NULL,
-    desconto   REAL    NOT NULL DEFAULT 0,
-    origem     TEXT    NOT NULL DEFAULT 'carrinho',
-    is_sync    INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL,
+    total           REAL    NOT NULL,
+    desconto        REAL    NOT NULL DEFAULT 0,
+    origem          TEXT    NOT NULL DEFAULT 'carrinho',
+    forma_pagamento TEXT    NOT NULL DEFAULT 'dinheiro',
+    is_sync         INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
   )
 ''');

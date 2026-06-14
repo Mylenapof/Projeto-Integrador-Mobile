@@ -29,26 +29,55 @@ class EncomendasPage extends ConsumerStatefulWidget {
 
 class _EncomendasPageState extends ConsumerState<EncomendasPage>
     with MessagesMixin {
-  final _formKey           = GlobalKey<FormState>();
-  final _saborController   = TextEditingController();
+  final _formKey             = GlobalKey<FormState>();
+  final _saborController     = TextEditingController();
   final _decoracaoController = TextEditingController();
-  final _obsController     = TextEditingController();
+  final _obsController       = TextEditingController();
+  final _qtdPersonalizadaController = TextEditingController();
 
   int     _tipoSelecionado = 0;
   String? _tipoProduto;
   String? _tamanho;
   bool    _carregando = false;
 
-  static const _tiposProduto       = ['Bolo','Torta','Cupcakes','Docinhos','Outro'];
-  static const _tamanhos           = ['Pequeno (10 fatias)','Médio (20 fatias)','Grande (30 fatias)','Personalizado'];
-  static const _tiposSalgado       = ['Coxinha','Esfiha','Kibe','Empada','Bolinha de Queijo','Misto'];
-  static const _quantidadesSalgado = ['100 unidades','200 unidades','300 unidades','500 unidades'];
+  // ── Salgados ────────────────────────────────────────────
+  String? _categoriaSalgado;            // 'Fritos' ou 'Assados'
+  final Set<String> _saboresSelecionados = {};
+  String? _quantidadeSalgado;           // '100', '200', 'Personalizado'
+
+  static const _tiposProduto = ['Bolo','Torta','Cupcakes','Docinhos','Outro'];
+  static const _tamanhos     = ['Pequeno (10 fatias)','Médio (20 fatias)','Grande (30 fatias)','Personalizado'];
+
+  static const _saboresFritos = [
+    'Coxinha de Frango',
+    'Bolinha de Queijo',
+    'Kibe',
+    'Risole de Presunto e Queijo',
+    'Enroladinho de Salsicha',
+    'Croquete de Carne',
+  ];
+
+  static const _saboresAssados = [
+    'Esfiha de Carne',
+    'Esfiha de Frango',
+    'Empada de Frango',
+    'Folhado de Presunto e Queijo',
+    'Enroladinho de Queijo',
+    'Quiche de Alho-poró',
+  ];
+
+  List<String> get _saboresDisponiveis {
+    if (_categoriaSalgado == 'Fritos')  return _saboresFritos;
+    if (_categoriaSalgado == 'Assados') return _saboresAssados;
+    return [];
+  }
 
   @override
   void dispose() {
     _saborController.dispose();
     _decoracaoController.dispose();
     _obsController.dispose();
+    _qtdPersonalizadaController.dispose();
     super.dispose();
   }
 
@@ -61,14 +90,52 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
       return;
     }
 
+    String tipoProdutoFinal;
+    String tamanhoFinal;
+    String saborFinal;
+
+    if (_tipoSelecionado == 0) {
+      // Encomenda personalizada
+      tipoProdutoFinal = _tipoProduto ?? '';
+      tamanhoFinal     = _tamanho ?? '';
+      saborFinal       = _saborController.text;
+    } else {
+      // Centos de salgados
+      if (_categoriaSalgado == null) {
+        showWarning(context, 'Selecione a categoria: Fritos ou Assados');
+        return;
+      }
+      if (_saboresSelecionados.isEmpty) {
+        showWarning(context, 'Selecione ao menos um sabor');
+        return;
+      }
+      if (_quantidadeSalgado == null) {
+        showWarning(context, 'Selecione a quantidade');
+        return;
+      }
+      if (_quantidadeSalgado == 'Personalizado') {
+        final qtd = int.tryParse(_qtdPersonalizadaController.text);
+        if (qtd == null || qtd <= 0) {
+          showWarning(context, 'Informe uma quantidade válida');
+          return;
+        }
+        tamanhoFinal = '${_qtdPersonalizadaController.text} unidades';
+      } else {
+        tamanhoFinal = '$_quantidadeSalgado unidades';
+      }
+
+      tipoProdutoFinal = _categoriaSalgado!;
+      saborFinal       = _saboresSelecionados.join(', ');
+    }
+
     setState(() => _carregando = true);
 
     final order = OrderModel(
       userId:      user.id!,
       tipo:        _tipoSelecionado == 0 ? 'personalizada' : 'salgados',
-      tipoProduto: _tipoProduto,
-      tamanho:     _tamanho,
-      sabor:       _saborController.text,
+      tipoProduto: tipoProdutoFinal,
+      tamanho:     tamanhoFinal,
+      sabor:       saborFinal,
       decoracao:   _decoracaoController.text,
       observacoes: _obsController.text,
       createdAt:   DateTime.now().toIso8601String(),
@@ -92,12 +159,16 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
 
   void _resetForm() {
     setState(() {
-      _tipoProduto = null;
-      _tamanho     = null;
+      _tipoProduto         = null;
+      _tamanho             = null;
+      _categoriaSalgado    = null;
+      _quantidadeSalgado   = null;
+      _saboresSelecionados.clear();
     });
     _saborController.clear();
     _decoracaoController.clear();
     _obsController.clear();
+    _qtdPersonalizadaController.clear();
   }
 
   @override
@@ -148,8 +219,9 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                 selecionado: _tipoSelecionado == 1,
                 onTap: () => setState(() {
                   _tipoSelecionado = 1;
-                  _tipoProduto = null;
-                  _tamanho = null;
+                  _categoriaSalgado = null;
+                  _quantidadeSalgado = null;
+                  _saboresSelecionados.clear();
                 }),
               ),
               const SizedBox(height: AppSizes.lg),
@@ -214,28 +286,147 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
 
                     // Campos salgados
                     if (_tipoSelecionado == 1) ...[
-                      CustomDropdown<String>(
-                        label: 'Tipo de Salgado',
-                        value: _tipoProduto,
-                        items: _tiposSalgado,
-                        itemLabel: (e) => e,
-                        hint: 'Selecione o tipo',
-                        validator: (v) => v == null ? 'Selecione o tipo de salgado' : null,
-                        onChanged: (v) => setState(() => _tipoProduto = v),
+                      const Text(
+                        'Categoria',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          fontSize: AppSizes.fontSm,
+                        ),
                       ),
+                      const SizedBox(height: AppSizes.sm),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _CategoriaSalgadoCard(
+                              titulo: 'Fritos',
+                              icon: Icons.local_fire_department_outlined,
+                              selecionado: _categoriaSalgado == 'Fritos',
+                              onTap: () => setState(() {
+                                _categoriaSalgado = 'Fritos';
+                                _saboresSelecionados.clear();
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: AppSizes.sm + 4),
+                          Expanded(
+                            child: _CategoriaSalgadoCard(
+                              titulo: 'Assados',
+                              icon: Icons.outdoor_grill_outlined,
+                              selecionado: _categoriaSalgado == 'Assados',
+                              onTap: () => setState(() {
+                                _categoriaSalgado = 'Assados';
+                                _saboresSelecionados.clear();
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSizes.md),
+
+                      // Sabores
+                      if (_categoriaSalgado != null) ...[
+                        const Text(
+                          'Sabores (selecione um ou mais)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            fontSize: AppSizes.fontSm,
+                          ),
+                        ),
+                        const SizedBox(height: AppSizes.sm),
+                        Wrap(
+                          spacing: AppSizes.sm,
+                          runSpacing: AppSizes.sm,
+                          children: _saboresDisponiveis.map((sabor) {
+                            final selecionado = _saboresSelecionados.contains(sabor);
+                            return FilterChip(
+                              label: Text(sabor),
+                              selected: selecionado,
+                              onSelected: (_) => setState(() {
+                                if (selecionado) {
+                                  _saboresSelecionados.remove(sabor);
+                                } else {
+                                  _saboresSelecionados.add(sabor);
+                                }
+                              }),
+                              backgroundColor: AppColors.surface,
+                              selectedColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                color: selecionado
+                                    ? AppColors.surface
+                                    : AppColors.textSecondary,
+                                fontSize: AppSizes.fontXs,
+                                fontWeight: selecionado
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              side: BorderSide(
+                                color: selecionado
+                                    ? AppColors.primary
+                                    : AppColors.surfacePink,
+                              ),
+                              showCheckmark: false,
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: AppSizes.md),
+                      ],
+
+                      // Quantidade
+                      const Text(
+                        'Quantidade',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          fontSize: AppSizes.fontSm,
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.sm),
+                      Wrap(
+                        spacing: AppSizes.sm,
+                        runSpacing: AppSizes.sm,
+                        children: ['100', '200', 'Personalizado'].map((q) {
+                          final selecionado = _quantidadeSalgado == q;
+                          return ChoiceChip(
+                            label: Text(q == 'Personalizado' ? q : '$q unidades'),
+                            selected: selecionado,
+                            onSelected: (_) => setState(() => _quantidadeSalgado = q),
+                            backgroundColor: AppColors.surface,
+                            selectedColor: AppColors.primary,
+                            labelStyle: TextStyle(
+                              color: selecionado
+                                  ? AppColors.surface
+                                  : AppColors.textSecondary,
+                              fontSize: AppSizes.fontXs,
+                              fontWeight: selecionado
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                            side: BorderSide(
+                              color: selecionado
+                                  ? AppColors.primary
+                                  : AppColors.surfacePink,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      // Campo de quantidade personalizada
+                      if (_quantidadeSalgado == 'Personalizado') ...[
+                        const SizedBox(height: AppSizes.sm + 4),
+                        CustomTextField(
+                          controller: _qtdPersonalizadaController,
+                          label: 'Quantidade de salgados',
+                          hint: 'Ex: 350',
+                          keyboardType: TextInputType.number,
+                        ),
+                      ],
+
                       const SizedBox(height: AppSizes.sm + 4),
-                      CustomDropdown<String>(
-                        label: 'Quantidade',
-                        value: _tamanho,
-                        items: _quantidadesSalgado,
-                        itemLabel: (e) => e,
-                        hint: 'Selecione a quantidade',
-                        validator: (v) => v == null ? 'Selecione a quantidade' : null,
-                        onChanged: (v) => setState(() => _tamanho = v),
-                      ),
                     ],
 
-                    const SizedBox(height: AppSizes.sm + 4),
+                    // OBSERVAÇÕES
                     CustomTextField(
                       controller: _obsController,
                       label: 'Observações Adicionais',
@@ -262,6 +453,7 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
   }
 }
 
+// ── Card de tipo de encomenda ──────────────────────────────
 class _TipoCard extends StatelessWidget {
   final String titulo;
   final String subtitulo;
@@ -325,6 +517,55 @@ class _TipoCard extends StatelessWidget {
             Icon(
               selecionado ? Icons.radio_button_checked : Icons.radio_button_off,
               color: selecionado ? AppColors.primary : AppColors.textHint,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card de categoria do salgado (Fritos / Assados) ───────
+class _CategoriaSalgadoCard extends StatelessWidget {
+  final String titulo;
+  final IconData icon;
+  final bool selecionado;
+  final VoidCallback onTap;
+
+  const _CategoriaSalgadoCard({
+    required this.titulo,
+    required this.icon,
+    required this.selecionado,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSizes.sm + 4),
+        decoration: BoxDecoration(
+          color: selecionado ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          border: Border.all(
+            color: selecionado ? AppColors.primary : AppColors.surfacePink,
+            width: selecionado ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon,
+                color: selecionado ? AppColors.surface : AppColors.primary,
+                size: 26),
+            const SizedBox(height: AppSizes.xs + 2),
+            Text(
+              titulo,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: selecionado ? AppColors.surface : AppColors.textPrimary,
+                fontSize: AppSizes.fontSm,
+              ),
             ),
           ],
         ),

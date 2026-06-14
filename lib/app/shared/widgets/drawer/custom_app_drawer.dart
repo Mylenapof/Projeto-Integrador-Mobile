@@ -25,16 +25,13 @@ class CustomAppDrawer extends StatelessWidget {
             color: AppColors.surface,
             child: Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.cake_outlined,
-                    color: AppColors.surface,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
                   ),
                 ),
                 const SizedBox(width: AppSizes.sm + 4),

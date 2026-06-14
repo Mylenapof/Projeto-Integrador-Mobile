@@ -12,13 +12,14 @@ import '../../../../shared/widgets/cards/custom_product_card.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../carrinho/presentation/controllers/cart_controller.dart';
 import '../../../produto/presentation/controllers/product_controller.dart';
+import '../../../produto/presentation/pages/produto_detalhe_page.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cartCount   = ref.watch(cartControllerProvider).length;
+    final cartCount = ref.watch(cartControllerProvider).length;
     final destaquesAV = ref.watch(destaquesProvider);
 
     return Scaffold(
@@ -71,7 +72,8 @@ class HomePage extends ConsumerWidget {
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.surface,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                        borderRadius:
+                            BorderRadius.circular(AppSizes.radiusFull),
                       ),
                     ),
                   ),
@@ -101,7 +103,7 @@ class HomePage extends ConsumerWidget {
                 ),
                 error: (e, _) => Center(
                   child: Text('Erro: $e',
-                    style: const TextStyle(color: AppColors.error)),
+                      style: const TextStyle(color: AppColors.error)),
                 ),
                 data: (destaques) => GridView.builder(
                   shrinkWrap: true,
@@ -110,17 +112,21 @@ class HomePage extends ConsumerWidget {
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSizes.sm + 4,
                     mainAxisSpacing: AppSizes.sm + 4,
-                    childAspectRatio: 0.78,
+                    childAspectRatio: 0.75,
                   ),
                   itemCount: destaques.length,
                   itemBuilder: (context, i) {
                     final p = destaques[i];
                     return CustomProductCard(
-                      nome:      p.nome,
+                      nome: p.nome,
                       descricao: p.descricao,
-                      preco:     p.preco,
+                      preco: p.preco,
                       imagemUrl: p.imagemUrl,
-                      onVerDetalhes: () => context.go('/cardapio'),
+                      onVerDetalhes: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ProdutoDetalhePage(produto: p)),
+                      ),
                     );
                   },
                 ),

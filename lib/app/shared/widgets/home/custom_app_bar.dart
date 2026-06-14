@@ -38,17 +38,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
       title: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.cake_outlined,
-              size: 18,
-              color: AppColors.surface,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/images/logo.png',
+              width: 30,
+              height: 30,
+              fit: BoxFit.cover,
             ),
           ),
           const SizedBox(width: 8),

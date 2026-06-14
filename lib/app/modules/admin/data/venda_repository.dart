@@ -8,16 +8,18 @@ class VendaRepository {
     required double total,
     required double desconto,
     required String origem,
+    required String formaPagamento,
     required List<Map<String, dynamic>> itens,
   }) async {
     final db = await _db.database;
     final vendaId = await db.insert('vendas', {
-      'user_id':    userId,
-      'total':      total,
-      'desconto':   desconto,
-      'origem':     origem,
-      'is_sync':    0,
-      'created_at': DateTime.now().toIso8601String(),
+      'user_id':         userId,
+      'total':           total,
+      'desconto':        desconto,
+      'origem':          origem,
+      'forma_pagamento': formaPagamento,
+      'is_sync':         0,
+      'created_at':      DateTime.now().toIso8601String(),
     });
     for (final item in itens) {
       await db.insert('venda_itens', {

@@ -11,6 +11,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/cart_controller.dart';
 import '../../../fidelidade/presentation/controllers/points_controller.dart';
 import '../../../admin/data/venda_repository.dart';
+import 'pagamento_page.dart';
+
 class CarrinhoPage extends ConsumerStatefulWidget {
   const CarrinhoPage({super.key});
 
@@ -18,7 +20,8 @@ class CarrinhoPage extends ConsumerStatefulWidget {
   ConsumerState<CarrinhoPage> createState() => _CarrinhoPageState();
 }
 
-class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin {
+class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
+    with MessagesMixin {
   RecompensaModel? _recompensaSelecionada;
 
   Future<void> _limparCarrinho() async {
@@ -36,58 +39,54 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
     );
   }
 
-  Future<void> _finalizarPedido(double total) async {
-  final user  = ref.read(authControllerProvider);
-  final itens = ref.read(cartControllerProvider);
-  if (user == null) return;
+  Future<void> _finalizarPedido(double total, String formaPagamento) async {
+    final user = ref.read(authControllerProvider);
+    final itens = ref.read(cartControllerProvider);
+    if (user == null) return;
 
-  // Registra a venda no histórico
-  await VendaRepository().registrarVenda(
-    userId:   user.id!,
-    total:    total,
-    desconto: _recompensaSelecionada?.desconto ?? 0,
-    origem:   'carrinho',
-    itens: itens.map((i) => {
-      'product_id':  i.productId,
-      'nome':        i.produtoNome ?? '',
-      'preco':       i.produtoPreco ?? 0,
-      'quantidade':  i.quantidade,
-      'category_id': 0,
-    }).toList(),
-  );
+    await VendaRepository().registrarVenda(
+      userId: user.id!,
+      total: total,
+      desconto: _recompensaSelecionada?.desconto ?? 0,
+      origem: 'carrinho',
+      formaPagamento: formaPagamento,
+      itens: itens
+          .map((i) => {
+                'product_id': i.productId,
+                'nome': i.produtoNome ?? '',
+                'preco': i.produtoPreco ?? 0,
+                'quantidade': i.quantidade,
+                'category_id': 0,
+              })
+          .toList(),
+    );
 
-  // Deduz pontos se usou recompensa
-  if (_recompensaSelecionada != null) {
-    await ref
-        .read(pointsControllerProvider.notifier)
-        .resgatar(_recompensaSelecionada!.pontos);
+    if (_recompensaSelecionada != null) {
+      await ref
+          .read(pointsControllerProvider.notifier)
+          .resgatar(_recompensaSelecionada!.pontos);
+    }
+
+    final pontosGanhos = total.toInt();
+    await ref.read(pointsControllerProvider.notifier).adicionar(pontosGanhos);
+
+    await ref.read(cartControllerProvider.notifier).limpar();
+    setState(() => _recompensaSelecionada = null);
   }
-
-  // Adiciona pontos pela compra
-  final pontosGanhos = total.toInt();
-  await ref.read(pointsControllerProvider.notifier).adicionar(pontosGanhos);
-
-  await ref.read(cartControllerProvider.notifier).limpar();
-  setState(() => _recompensaSelecionada = null);
-
-  if (!mounted) return;
-  showSuccess(context,
-      'Pedido realizado! +$pontosGanhos Sweet Points adicionados!');
-}
 
   @override
   Widget build(BuildContext context) {
-    final itens         = ref.watch(cartControllerProvider);
-    final cart          = ref.read(cartControllerProvider.notifier);
-    final user          = ref.watch(authControllerProvider);
-    final pontos        = ref.watch(pointsControllerProvider)?.pontos ?? 0;
+    final itens = ref.watch(cartControllerProvider);
+    final cart = ref.read(cartControllerProvider.notifier);
+    final user = ref.watch(authControllerProvider);
+    final pontos = ref.watch(pointsControllerProvider)?.pontos ?? 0;
     final recompensasAV = ref.watch(recompensasProvider);
 
-    final subtotal  = cart.total;
-    final desconto  = _recompensaSelecionada != null
+    final subtotal = cart.total;
+    final desconto = _recompensaSelecionada != null
         ? subtotal * (_recompensaSelecionada!.desconto / 100)
         : 0.0;
-    final total     = subtotal - desconto;
+    final total = subtotal - desconto;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -116,9 +115,8 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
           ? _buildNaoLogado()
           : itens.isEmpty
               ? _buildVazio()
-              : _buildLista(
-                  itens, cart, subtotal, desconto, total,
-                  pontos, recompensasAV),
+              : _buildLista(itens, cart, subtotal, desconto, total, pontos,
+                  recompensasAV),
     );
   }
 
@@ -180,8 +178,14 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
     );
   }
 
-  Widget _buildLista(itens, cart, double subtotal, double desconto,
-      double total, int pontos, AsyncValue<List<RecompensaModel>> recompensasAV) {
+  Widget _buildLista(
+      itens,
+      cart,
+      double subtotal,
+      double desconto,
+      double total,
+      int pontos,
+      AsyncValue<List<RecompensaModel>> recompensasAV) {
     return Column(
       children: [
         Expanded(
@@ -205,8 +209,7 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
                       height: 56,
                       decoration: BoxDecoration(
                         color: AppColors.surfacePink,
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radiusSm),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                       ),
                       child: const Icon(Icons.cake_outlined,
                           color: AppColors.primaryLight, size: 28),
@@ -279,9 +282,8 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
             data: (recompensas) {
-              final disponiveis = recompensas
-                  .where((r) => pontos >= r.pontos)
-                  .toList();
+              final disponiveis =
+                  recompensas.where((r) => pontos >= r.pontos).toList();
 
               if (disponiveis.isEmpty) {
                 return Row(
@@ -333,8 +335,8 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
                               color: _recompensaSelecionada == null
                                   ? AppColors.primary
                                   : AppColors.surface,
-                              borderRadius: BorderRadius.circular(
-                                  AppSizes.radiusFull),
+                              borderRadius:
+                                  BorderRadius.circular(AppSizes.radiusFull),
                               border: Border.all(
                                 color: _recompensaSelecionada == null
                                     ? AppColors.primary
@@ -357,11 +359,10 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
                           final selecionada =
                               _recompensaSelecionada?.id == r.id;
                           return GestureDetector(
-                            onTap: () => setState(
-                                () => _recompensaSelecionada = r),
+                            onTap: () =>
+                                setState(() => _recompensaSelecionada = r),
                             child: Container(
-                              margin:
-                                  const EdgeInsets.only(right: AppSizes.sm),
+                              margin: const EdgeInsets.only(right: AppSizes.sm),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: AppSizes.sm + 4,
                                   vertical: AppSizes.xs + 2),
@@ -369,8 +370,8 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
                                 color: selecionada
                                     ? AppColors.primary
                                     : AppColors.surface,
-                                borderRadius: BorderRadius.circular(
-                                    AppSizes.radiusFull),
+                                borderRadius:
+                                    BorderRadius.circular(AppSizes.radiusFull),
                                 border: Border.all(
                                   color: selecionada
                                       ? AppColors.primary
@@ -469,7 +470,16 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage> with MessagesMixin 
               CustomPrimaryButton(
                 text: 'Finalizar Pedido',
                 icon: Icons.check_circle_outline,
-                onPressed: () => _finalizarPedido(total),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PagamentoPage(
+                      total: total,
+                      onConfirmar: (formaPagamento) =>
+                          _finalizarPedido(total, formaPagamento),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
