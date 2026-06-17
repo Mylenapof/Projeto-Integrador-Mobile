@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/mixins/messages_mixin.dart';
+import '../../../../core/services/push_notification_service.dart';
 
 import '../../../../shared/widgets/home/custom_app_bar.dart';
 import '../../../../shared/widgets/drawer/custom_app_drawer.dart';
@@ -16,10 +17,12 @@ import '../../../../shared/widgets/forms/custom_text_field.dart';
 import '../../../../shared/widgets/dialogs/custom_success_dialog.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../admin/domain/admin_service.dart';
 
 import '../../data/order_model.dart';
 import '../controllers/order_controller.dart';
 import 'meus_pedidos_page.dart';
+import '../../../carrinho/presentation/pages/pagamento_page.dart';
 
 class EncomendasPage extends ConsumerStatefulWidget {
   const EncomendasPage({super.key});
@@ -35,14 +38,17 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
   final _decoracaoController = TextEditingController();
   final _obsController       = TextEditingController();
   final _qtdPersonalizadaController = TextEditingController();
+  final _qtdPessoasController = TextEditingController();
   final _enderecoController  = TextEditingController();
   final _linkController      = TextEditingController();
   final _telefoneController  = TextEditingController();
 
   int     _tipoSelecionado = 0;
   String? _tipoProduto;
-  String? _tamanho;
   bool    _carregando = false;
+
+  DateTime? _dataRetirada;
+  TimeOfDay? _horarioRetirada;
 
   // ── Salgados ────────────────────────────────────────────
   String? _categoriaSalgado;
@@ -55,7 +61,6 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
   static const _precoSalgadoUnidade = 1.0; // R$1 por salgado
 
   static const _tiposProduto = ['Bolo','Torta','Cupcakes','Docinhos','Outro'];
-  static const _tamanhos     = ['Pequeno (10 fatias)','Médio (20 fatias)','Grande (30 fatias)','Personalizado'];
 
   static const _saboresFritos = [
     'Coxinha de Frango',
@@ -96,10 +101,30 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
     _decoracaoController.dispose();
     _obsController.dispose();
     _qtdPersonalizadaController.dispose();
+    _qtdPessoasController.dispose();
     _enderecoController.dispose();
     _linkController.dispose();
     _telefoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selecionarData() async {
+    final hoje = DateTime.now();
+    final data = await showDatePicker(
+      context: context,
+      initialDate: hoje.add(const Duration(days: 1)),
+      firstDate: hoje,
+      lastDate: hoje.add(const Duration(days: 90)),
+    );
+    if (data != null) setState(() => _dataRetirada = data);
+  }
+
+  Future<void> _selecionarHorario() async {
+    final horario = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 14, minute: 0),
+    );
+    if (horario != null) setState(() => _horarioRetirada = horario);
   }
 
   Future<void> _enviar() async {
@@ -118,7 +143,7 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
 
     if (_tipoSelecionado == 0) {
       tipoProdutoFinal = _tipoProduto ?? '';
-      tamanhoFinal     = _tamanho ?? '';
+      tamanhoFinal     = '${_qtdPessoasController.text} pessoas';
       saborFinal       = _saborController.text;
     } else {
       if (_categoriaSalgado == null) {
@@ -149,11 +174,59 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
       valorEstimado    = _valorEstimadoSalgados;
     }
 
+    if (_dataRetirada == null) {
+      showWarning(context, 'Selecione a data de retirada/entrega');
+      return;
+    }
+    if (_horarioRetirada == null) {
+      showWarning(context, 'Selecione o horário de retirada/entrega');
+      return;
+    }
+
     if (_tipoEntrega == 'entrega' && _enderecoController.text.trim().isEmpty) {
       showWarning(context, 'Informe o endereço de entrega');
       return;
     }
 
+    // Salgados: precisa pagar antes de salvar
+    if (_tipoSelecionado == 1 && valorEstimado != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PagamentoPage(
+            total: valorEstimado!,
+            onConfirmar: (formaPagamento) => _salvarEncomenda(
+              user: user,
+              tipoProdutoFinal: tipoProdutoFinal,
+              tamanhoFinal: tamanhoFinal,
+              saborFinal: saborFinal,
+              valorEstimado: valorEstimado,
+              formaPagamento: formaPagamento,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Personalizada: vai direto para orçamento pendente, sem pagamento
+    await _salvarEncomenda(
+      user: user,
+      tipoProdutoFinal: tipoProdutoFinal,
+      tamanhoFinal: tamanhoFinal,
+      saborFinal: saborFinal,
+      valorEstimado: null,
+    );
+  }
+
+  Future<void> _salvarEncomenda({
+    required dynamic user,
+    required String tipoProdutoFinal,
+    required String tamanhoFinal,
+    required String saborFinal,
+    double? valorEstimado,
+    String? formaPagamento,
+  }) async {
     setState(() => _carregando = true);
 
     final order = OrderModel(
@@ -164,15 +237,18 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
       sabor:           saborFinal,
       decoracao:       _decoracaoController.text,
       observacoes:     _obsController.text,
-      valorOrcamento:  valorEstimado, // salgados já vêm com valor calculado
+      valorOrcamento:  valorEstimado,
       status:          valorEstimado != null ? 'respondido' : 'pendente',
       respostaAdmin:   valorEstimado != null
           ? 'Valor calculado automaticamente: R\$ ${valorEstimado.toStringAsFixed(2).replaceAll('.', ',')}'
+              '${formaPagamento != null ? ' • Pagamento: ${formaPagamento == 'pix' ? 'PIX' : 'Dinheiro'}' : ''}'
           : null,
       tipoEntrega:     _tipoEntrega,
       endereco:        _tipoEntrega == 'entrega' ? _enderecoController.text.trim() : null,
       linkLocalizacao: _linkController.text.trim().isEmpty ? null : _linkController.text.trim(),
       telefone:        _telefoneController.text.trim(),
+      dataRetirada:    '${_dataRetirada!.day.toString().padLeft(2, '0')}/${_dataRetirada!.month.toString().padLeft(2, '0')}/${_dataRetirada!.year}',
+      horarioRetirada: _horarioRetirada!.format(context),
       createdAt:       DateTime.now().toIso8601String(),
     );
 
@@ -182,31 +258,48 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
 
     if (erro != null) {
       showError(context, erro);
-    } else {
-      await CustomSuccessDialog.show(
-        context,
-        titulo: _tipoSelecionado == 1 ? 'Encomenda enviada!' : 'Pedido de orçamento enviado!',
-        mensagem: _tipoSelecionado == 1
-            ? 'Centos de salgados confirmados! Valor: R\$ ${valorEstimado?.toStringAsFixed(2).replaceAll('.', ',')}.\nAcompanhe em "Meus Pedidos".'
-            : 'Recebemos sua solicitação. Em breve enviaremos o orçamento.\nAcompanhe a resposta em "Meus Pedidos".',
-      );
-      _resetForm();
+      return;
     }
+
+    await CustomSuccessDialog.show(
+      context,
+      titulo: _tipoSelecionado == 1 ? 'Encomenda enviada!' : 'Pedido de orçamento enviado!',
+      mensagem: _tipoSelecionado == 1
+          ? 'Centos de salgados confirmados! Valor: R\$ ${valorEstimado?.toStringAsFixed(2).replaceAll('.', ',')}.\nAcompanhe em "Meus Pedidos".'
+          : 'Recebemos sua solicitação. Em breve enviaremos o orçamento.\nAcompanhe a resposta em "Meus Pedidos".',
+    );
+
+    // Notifica o admin sobre a nova encomenda personalizada (orçamento pendente)
+    if (valorEstimado == null) {
+      final tokenAdmin = await AdminService().getFcmToken();
+      if (tokenAdmin != null) {
+        await PushNotificationService().enviarNotificacao(
+          tokenDestino: tokenAdmin,
+          titulo: 'Nova encomenda recebida! 📦',
+          corpo: '${user.nome} fez um pedido de orçamento personalizado.',
+        );
+      }
+    }
+
+    if (!mounted) return;
+    _resetForm();
   }
 
   void _resetForm() {
     setState(() {
       _tipoProduto         = null;
-      _tamanho             = null;
       _categoriaSalgado    = null;
       _quantidadeSalgado   = null;
       _saboresSelecionados.clear();
       _tipoEntrega         = 'retirada';
+      _dataRetirada        = null;
+      _horarioRetirada     = null;
     });
     _saborController.clear();
     _decoracaoController.clear();
     _obsController.clear();
     _qtdPersonalizadaController.clear();
+    _qtdPessoasController.clear();
     _enderecoController.clear();
     _linkController.clear();
     _telefoneController.clear();
@@ -260,7 +353,6 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                 onTap: () => setState(() {
                   _tipoSelecionado = 0;
                   _tipoProduto = null;
-                  _tamanho = null;
                 }),
               ),
               const SizedBox(height: AppSizes.sm + 2),
@@ -330,14 +422,14 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                         onChanged: (v) => setState(() => _tipoProduto = v),
                       ),
                       const SizedBox(height: AppSizes.sm + 4),
-                      CustomDropdown<String>(
-                        label: 'Tamanho',
-                        value: _tamanho,
-                        items: _tamanhos,
-                        itemLabel: (e) => e,
-                        hint: 'Selecione o tamanho',
-                        validator: (v) => v == null ? 'Selecione o tamanho' : null,
-                        onChanged: (v) => setState(() => _tamanho = v),
+                      CustomTextField(
+                        controller: _qtdPessoasController,
+                        label: 'Quantidade de pessoas',
+                        hint: 'Ex: 20',
+                        prefixIcon: Icons.groups_outlined,
+                        keyboardType: TextInputType.number,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'Informe a quantidade de pessoas' : null,
                       ),
                       const SizedBox(height: AppSizes.sm + 4),
                       CustomTextField(
@@ -521,6 +613,89 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                       hint: 'Alergias, preferências...',
                       maxLines: 3,
                       alignLabelWithHint: true,
+                    ),
+                    const SizedBox(height: AppSizes.lg),
+
+                    // Data e horário de retirada/entrega
+                    const Text(
+                      'Data e Horário de Retirada/Entrega',
+                      style: TextStyle(
+                        fontSize: AppSizes.fontLg,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.sm + 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _selecionarData,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSizes.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                                border: Border.all(color: AppColors.surfacePink),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined,
+                                      color: AppColors.primary, size: 20),
+                                  const SizedBox(width: AppSizes.sm),
+                                  Expanded(
+                                    child: Text(
+                                      _dataRetirada == null
+                                          ? 'Selecionar data'
+                                          : '${_dataRetirada!.day.toString().padLeft(2, '0')}/${_dataRetirada!.month.toString().padLeft(2, '0')}/${_dataRetirada!.year}',
+                                      style: TextStyle(
+                                        color: _dataRetirada == null
+                                            ? AppColors.textHint
+                                            : AppColors.textPrimary,
+                                        fontSize: AppSizes.fontSm,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSizes.sm + 4),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _selecionarHorario,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSizes.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                                border: Border.all(color: AppColors.surfacePink),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.access_time_outlined,
+                                      color: AppColors.primary, size: 20),
+                                  const SizedBox(width: AppSizes.sm),
+                                  Expanded(
+                                    child: Text(
+                                      _horarioRetirada == null
+                                          ? 'Selecionar horário'
+                                          : _horarioRetirada!.format(context),
+                                      style: TextStyle(
+                                        color: _horarioRetirada == null
+                                            ? AppColors.textHint
+                                            : AppColors.textPrimary,
+                                        fontSize: AppSizes.fontSm,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSizes.lg),
 

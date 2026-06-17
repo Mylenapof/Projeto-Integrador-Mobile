@@ -7,6 +7,8 @@ import '../../../../shared/widgets/buttons/custom_primary_button.dart';
 import '../../../../shared/widgets/forms/custom_text_field.dart';
 import '../../../encomenda/data/order_model.dart';
 import '../../../encomenda/presentation/controllers/order_controller.dart';
+import '../../../../core/services/push_notification_service.dart';
+import '../../../auth/data/user_repository.dart';
 
 class OrcamentosPage extends ConsumerStatefulWidget {
   const OrcamentosPage({super.key});
@@ -19,32 +21,43 @@ class _OrcamentosPageState extends ConsumerState<OrcamentosPage>
     with MessagesMixin {
   bool _mostrarApenasPendentes = true;
 
-  void _abrirResponder(OrderModel pedido) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ResponderSheet(
-        pedido: pedido,
-        onResponder: (valor, resposta) async {
-          final erro = await ref
-              .read(adminOrderControllerProvider.notifier)
-              .responderOrcamento(pedido.id!, valor, resposta);
-          if (!mounted) return;
-          Navigator.pop(context);
-          if (erro != null) {
-            showError(context, erro);
-          } else {
-            showSuccess(context, 'Orçamento enviado ao cliente!');
-          }
-        },
-      ),
-    );
-  }
+ void _abrirResponder(OrderModel pedido) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => _ResponderSheet(
+      pedido: pedido,
+      onResponder: (valor, resposta) async {
+        final erro = await ref
+            .read(adminOrderControllerProvider.notifier)
+            .responderOrcamento(pedido.id!, valor, resposta);
+        if (!mounted) return;
+        Navigator.pop(context);
+        if (erro != null) {
+          showError(context, erro);
+        } else {
+          showSuccess(context, 'Orçamento enviado ao cliente!');
 
+          // Notifica o cliente via push
+          final tokenCliente =
+              await UserRepository().getFcmToken(pedido.userId);
+          if (tokenCliente != null) {
+            await PushNotificationService().enviarNotificacao(
+              tokenDestino: tokenCliente,
+              titulo: 'Seu orçamento chegou! 🎂',
+              corpo:
+                  'Valor: R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}. Confira em Meus Pedidos.',
+            );
+          }
+        }
+      },
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     final pedidos = ref.watch(adminOrderControllerProvider);

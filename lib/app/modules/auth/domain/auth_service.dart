@@ -91,27 +91,48 @@ class AuthService extends BaseService<UserModel, UserRepository, UserValidation>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('user_id', userId);
   }
-  Future<String?> atualizarPerfil(UserModel user) async {
-  try {
-    if (!validation.isValidEmail(user.email)) return 'E-mail inválido';
-    await repository.atualizarPerfil(user);
-    return null;
-  } catch (e) {
-    return 'Erro ao atualizar perfil';
-  }
-}
 
-Future<String?> alterarSenha(int userId, String senhaAtual, String novaSenha) async {
-  try {
-    final user = await repository.findById(userId);
-    if (user == null || user.senha != senhaAtual) {
-      return 'Senha atual incorreta';
+  Future<String?> atualizarPerfil(UserModel user) async {
+    try {
+      if (!validation.isValidEmail(user.email)) return 'E-mail inválido';
+      await repository.atualizarPerfil(user);
+      return null;
+    } catch (e) {
+      return 'Erro ao atualizar perfil';
     }
-    if (novaSenha.length < 6) return 'Nova senha deve ter ao menos 6 caracteres';
-    await repository.atualizarSenha(userId, novaSenha);
-    return null;
-  } catch (e) {
-    return 'Erro ao alterar senha';
   }
-}
+
+  Future<String?> alterarSenha(int userId, String senhaAtual, String novaSenha) async {
+    try {
+      final user = await repository.findById(userId);
+      if (user == null || user.senha != senhaAtual) {
+        return 'Senha atual incorreta';
+      }
+      if (novaSenha.length < 6) return 'Nova senha deve ter ao menos 6 caracteres';
+      await repository.atualizarSenha(userId, novaSenha);
+      return null;
+    } catch (e) {
+      return 'Erro ao alterar senha';
+    }
+  }
+
+  Future<void> salvarFcmToken(int userId, String token) async {
+    try {
+      await repository.salvarFcmToken(userId, token);
+    } catch (_) {}
+  }
+
+  Future<void> salvarFcmTokenAdmin(String email, String token) async {
+    try {
+      final db = await _db.database;
+      await db.update(
+        'admins',
+        {'fcm_token': token},
+        where: 'email = ?',
+        whereArgs: [email.trim()],
+      );
+    } catch (e) {
+      print("ERRO AO SALVAR FCM TOKEN ADMIN: $e");
+    }
+  }
 }

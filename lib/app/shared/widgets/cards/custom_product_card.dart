@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_sizes.dart';
 
@@ -41,12 +42,26 @@ class CustomProductCard extends StatelessWidget {
               height: 95,
               width: double.infinity,
               child: imagemUrl != null
-                  ? Image.network(
-                      imagemUrl!,
+                  ? CachedNetworkImage(
+                      imageUrl: imagemUrl!,
                       height: 95,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder(),
+                      placeholder: (_, __) => Container(
+                        height: 95,
+                        color: AppColors.surfacePink,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryLight,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => _placeholder(),
                     )
                   : _placeholder(),
             ),

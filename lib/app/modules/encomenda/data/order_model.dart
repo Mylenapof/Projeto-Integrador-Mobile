@@ -15,6 +15,8 @@ class OrderModel extends BaseModel {
   final String? endereco;
   final String? linkLocalizacao;
   final String? telefone;
+  final String? dataRetirada;
+  final String? horarioRetirada;
 
   const OrderModel({
     super.id,
@@ -32,6 +34,8 @@ class OrderModel extends BaseModel {
     this.endereco,
     this.linkLocalizacao,
     this.telefone,
+    this.dataRetirada,
+    this.horarioRetirada,
     super.isSync,
     super.createdAt,
   });
@@ -53,6 +57,8 @@ class OrderModel extends BaseModel {
     'endereco':          endereco,
     'link_localizacao':  linkLocalizacao,
     'telefone':          telefone,
+    'data_retirada':     dataRetirada,
+    'horario_retirada':  horarioRetirada,
     'is_sync':           isSync,
     'created_at':        createdAt ?? DateTime.now().toIso8601String(),
   };
@@ -73,6 +79,8 @@ class OrderModel extends BaseModel {
     endereco:        m['endereco'],
     linkLocalizacao: m['link_localizacao'],
     telefone:        m['telefone'],
+    dataRetirada:    m['data_retirada'],
+    horarioRetirada: m['horario_retirada'],
     isSync:          m['is_sync'] ?? 0,
     createdAt:        m['created_at'],
   );
@@ -97,6 +105,8 @@ class OrderModel extends BaseModel {
     endereco:        endereco,
     linkLocalizacao: linkLocalizacao,
     telefone:        telefone,
+    dataRetirada:    dataRetirada,
+    horarioRetirada: horarioRetirada,
     isSync:          isSync,
     createdAt:       createdAt,
   );

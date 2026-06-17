@@ -97,4 +97,28 @@ class AdminService {
       return 'Erro ao excluir recompensa';
     }
   }
+  Future<void> salvarFcmToken(String email, String token) async {
+  try {
+    final db = await _db.database;
+    await db.update(
+      'admins',
+      {'fcm_token': token},
+      where: 'email = ?',
+      whereArgs: [email.trim()],
+    );
+  } catch (e) {
+    print("ERRO AO SALVAR FCM TOKEN ADMIN: $e");
+  }
+}
+
+Future<String?> getFcmToken() async {
+  try {
+    final db = await _db.database;
+    final resultado = await db.query('admins', columns: ['fcm_token']);
+    if (resultado.isEmpty) return null;
+    return resultado.first['fcm_token'] as String?;
+  } catch (e) {
+    return null;
+  }
+}
 }

@@ -17,7 +17,7 @@ class DatabaseHelper {
 
   Future<Database> _initDB() async {
     final path = join(await getDatabasesPath(), _dbName);
-    await deleteDatabase(path); // ← REMOVA após rodar uma vez
+    /* await deleteDatabase(path);  */// ← REMOVA após rodar uma vez
     return openDatabase(
       path,
       version: _dbVersion,
@@ -34,6 +34,7 @@ class DatabaseHelper {
     senha      TEXT    NOT NULL,
     endereco   TEXT,
     telefone   TEXT,
+    fcm_token  TEXT,
     is_sync    INTEGER NOT NULL DEFAULT 0,
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
   )
@@ -64,7 +65,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
+await db.execute('''
   CREATE TABLE orders (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id          INTEGER NOT NULL,
@@ -81,6 +82,8 @@ class DatabaseHelper {
     endereco         TEXT,
     link_localizacao TEXT,
     telefone         TEXT,
+    data_retirada    TEXT,
+    horario_retirada TEXT,
     is_sync          INTEGER NOT NULL DEFAULT 0,
     created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
@@ -110,16 +113,16 @@ class DatabaseHelper {
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     ''');
-
     await db.execute('''
-      CREATE TABLE admins (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        email      TEXT    NOT NULL UNIQUE,
-        senha      TEXT    NOT NULL,
-        is_sync    INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
-      )
-    ''');
+  CREATE TABLE admins (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    email      TEXT    NOT NULL UNIQUE,
+    senha      TEXT    NOT NULL,
+    fcm_token  TEXT,
+    is_sync    INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  )
+''');
 
     await db.execute('''
       CREATE TABLE recompensas (

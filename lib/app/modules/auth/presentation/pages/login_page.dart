@@ -9,6 +9,8 @@ import '../../../../shared/widgets/buttons/custom_outlined_button.dart';
 import '../../../../shared/widgets/forms/custom_text_field.dart';
 import '../controllers/auth_controller.dart';
 import '../../../admin/presentation/pages/admin_page.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/notification_service.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -60,15 +62,28 @@ Future<void> _fazerLogin() async {
   if (erro != null) {
     showError(context, erro);
   } else if (isAdmin) {
-    // Admin vai direto para o painel, sem passar pela home
+    // Salva o token FCM do admin para receber notificações de novas encomendas
+    final token = await NotificationService.instance.getToken();
+    if (token != null) {
+      await ref.read(authControllerProvider.notifier).salvarFcmTokenAdmin(
+        _emailLoginController.text.trim(),
+        token,
+      );
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const AdminPage()),
     );
   } else {
+    // Salva o token FCM do cliente
+    final token = await NotificationService.instance.getToken();
+    if (token != null) {
+      await ref.read(authControllerProvider.notifier).salvarFcmToken(token);
+    }
     context.go('/home');
   }
 }
+
 
   Future<void> _fazerCadastro() async {
     setState(() => _carregando = true);

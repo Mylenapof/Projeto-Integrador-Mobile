@@ -52,6 +52,15 @@ class AuthController extends StateNotifier<UserModel?> with MessagesMixin {
     return _service.alterarSenha(state!.id!, senhaAtual, novaSenha);
   }
 
+  Future<void> salvarFcmToken(String token) async {
+    if (state == null) return;
+    await _service.salvarFcmToken(state!.id!, token);
+  }
+
+  Future<void> salvarFcmTokenAdmin(String email, String token) async {
+    await _service.salvarFcmTokenAdmin(email, token);
+  }
+
   bool get isLogado => state != null;
   UserModel? get usuario => state;
 }
