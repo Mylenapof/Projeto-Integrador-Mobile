@@ -32,18 +32,18 @@ class CustomProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Imagem com altura fixa e controlada
+          // Imagem
           ClipRRect(
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(AppSizes.radiusLg),
             ),
             child: SizedBox(
-              height: 100,
+              height: 95,
               width: double.infinity,
               child: imagemUrl != null
                   ? Image.network(
                       imagemUrl!,
-                      height: 100,
+                      height: 95,
                       width: double.infinity,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _placeholder(),
@@ -54,7 +54,7 @@ class CustomProductCard extends StatelessWidget {
 
           // Conteúdo
           Padding(
-            padding: const EdgeInsets.all(AppSizes.sm + 2),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -78,11 +78,12 @@ class CustomProductCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: AppSizes.fontXs,
                     color: AppColors.textSecondary,
+                    height: 1.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSizes.xs + 2),
+                const SizedBox(height: 4),
 
                 // Preço
                 Text(
@@ -93,12 +94,12 @@ class CustomProductCard extends StatelessWidget {
                     fontSize: AppSizes.fontMd,
                   ),
                 ),
-                const SizedBox(height: AppSizes.xs + 2),
+                const SizedBox(height: 4),
 
                 // Botão Ver Detalhes
                 SizedBox(
                   width: double.infinity,
-                  height: 32,
+                  height: 30,
                   child: OutlinedButton(
                     onPressed: onVerDetalhes,
                     style: OutlinedButton.styleFrom(
@@ -118,10 +119,10 @@ class CustomProductCard extends StatelessWidget {
 
                 // Botão Adicionar
                 if (onAdicionar != null) ...[
-                  const SizedBox(height: AppSizes.xs),
+                  const SizedBox(height: 4),
                   SizedBox(
                     width: double.infinity,
-                    height: 32,
+                    height: 30,
                     child: ElevatedButton.icon(
                       onPressed: onAdicionar,
                       icon: const Icon(Icons.add, size: 14),
@@ -152,7 +153,7 @@ class CustomProductCard extends StatelessWidget {
 
   Widget _placeholder() {
     return Container(
-      height: 100,
+      height: 95,
       width: double.infinity,
       color: AppColors.surfacePink,
       child: const Icon(

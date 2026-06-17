@@ -19,10 +19,11 @@ class AuthController extends StateNotifier<UserModel?> with MessagesMixin {
   }
 
   // Retorna: (erro, isAdmin)
-  Future<(String?, bool)> login(BuildContext context, String email, String senha) async {
+  Future<(String?, bool)> login(
+      BuildContext context, String email, String senha) async {
     final (user, error, isAdmin) = await _service.login(email, senha);
     if (error != null) return (error, false);
-    if (isAdmin) return (null, true);   // ← sinaliza que é admin
+    if (isAdmin) return (null, true); // ← sinaliza que é admin
     state = user;
     return (null, false);
   }
@@ -38,6 +39,17 @@ class AuthController extends StateNotifier<UserModel?> with MessagesMixin {
   Future<void> logout() async {
     await _service.logout();
     state = null;
+  }
+
+  Future<String?> atualizarPerfil(UserModel user) async {
+    final erro = await _service.atualizarPerfil(user);
+    if (erro == null) state = user;
+    return erro;
+  }
+
+  Future<String?> alterarSenha(String senhaAtual, String novaSenha) async {
+    if (state == null) return 'Usuário não logado';
+    return _service.alterarSenha(state!.id!, senhaAtual, novaSenha);
   }
 
   bool get isLogado => state != null;

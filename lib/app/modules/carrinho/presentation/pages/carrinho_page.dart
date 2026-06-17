@@ -7,11 +7,13 @@ import '../../../../core/mixins/messages_mixin.dart';
 import '../../../../shared/widgets/buttons/custom_primary_button.dart';
 import '../../../../shared/widgets/dialogs/custom_confirm_dialog.dart';
 import '../../../admin/data/recompensa_model.dart';
+import '../../../auth/data/user_model.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/cart_controller.dart';
 import '../../../fidelidade/presentation/controllers/points_controller.dart';
 import '../../../admin/data/venda_repository.dart';
 import 'pagamento_page.dart';
+import 'entrega_page.dart';
 
 class CarrinhoPage extends ConsumerStatefulWidget {
   const CarrinhoPage({super.key});
@@ -39,12 +41,13 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
     );
   }
 
-  Future<void> _finalizarPedido(double total, String formaPagamento) async {
+  Future<void> _finalizarPedido(
+      double total, String formaPagamento, DadosEntrega entrega) async {
     final user = ref.read(authControllerProvider);
     final itens = ref.read(cartControllerProvider);
     if (user == null) return;
 
-    await VendaRepository().registrarVenda(
+    final vendaId = await VendaRepository().registrarVenda(
       userId: user.id!,
       total: total,
       desconto: _recompensaSelecionada?.desconto ?? 0,
@@ -59,6 +62,15 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
                 'category_id': 0,
               })
           .toList(),
+    );
+
+    await VendaRepository().registrarEntrega(
+      vendaId: vendaId,
+      tipo: entrega.tipo,
+      endereco: entrega.endereco,
+      linkLocalizacao: entrega.linkLocalizacao,
+      telefone: entrega.telefone,
+      observacoes: entrega.observacoes,
     );
 
     if (_recompensaSelecionada != null) {
@@ -116,7 +128,7 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
           : itens.isEmpty
               ? _buildVazio()
               : _buildLista(itens, cart, subtotal, desconto, total, pontos,
-                  recompensasAV),
+                  recompensasAV, user),
     );
   }
 
@@ -185,7 +197,8 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
       double desconto,
       double total,
       int pontos,
-      AsyncValue<List<RecompensaModel>> recompensasAV) {
+      AsyncValue<List<RecompensaModel>> recompensasAV,
+      UserModel? user) {
     return Column(
       children: [
         Expanded(
@@ -470,16 +483,34 @@ class _CarrinhoPageState extends ConsumerState<CarrinhoPage>
               CustomPrimaryButton(
                 text: 'Finalizar Pedido',
                 icon: Icons.check_circle_outline,
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PagamentoPage(
-                      total: total,
-                      onConfirmar: (formaPagamento) =>
-                          _finalizarPedido(total, formaPagamento),
+                onPressed: () {
+                  DadosEntrega? dadosEntrega;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EntregaPage(
+                        user: user,
+                        onConfirmar: (entrega) {
+                          dadosEntrega = entrega;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PagamentoPage(
+                                total: total,
+                                onConfirmar: (formaPagamento) =>
+                                    _finalizarPedido(
+                                  total,
+                                  formaPagamento,
+                                  dadosEntrega!,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ],
           ),

@@ -16,8 +16,12 @@ class OrderValidation extends BaseValidation<OrderModel, OrderRepository> {
       if (!isNotEmpty(entity.sabor))       return 'Sabor é obrigatório';
     }
     if (entity.tipo == 'salgados') {
-      if (!isNotEmpty(entity.tipoProduto)) return 'Tipo de salgado é obrigatório';
+      if (!isNotEmpty(entity.tipoProduto)) return 'Categoria do salgado é obrigatória';
+      if (!isNotEmpty(entity.sabor))       return 'Selecione ao menos um sabor';
       if (!isNotEmpty(entity.tamanho))     return 'Quantidade é obrigatória';
+    }
+    if (entity.tipoEntrega == 'entrega' && !isNotEmpty(entity.endereco)) {
+      return 'Endereço de entrega é obrigatório';
     }
     return null;
   }
@@ -37,6 +41,10 @@ class OrderService
   Future<List<OrderModel>> getByUser(int userId) =>
       repository.findByUser(userId);
 
+  Future<List<OrderModel>> getTodas() => repository.findTodas();
+
+  Future<List<OrderModel>> getPendentes() => repository.findPendentes();
+
   Future<(int?, String?)> enviar(OrderModel order) async {
     final result = await create(order);
     if (result.$1 != null) {
@@ -44,5 +52,17 @@ class OrderService
           'Encomenda ${result.$1} criada para user ${order.userId}');
     }
     return result;
+  }
+
+  Future<String?> responderOrcamento(int orderId, double valor, String resposta) async {
+    try {
+      await repository.responderOrcamento(orderId, valor, resposta);
+      _logger.info('OrderService', 'responderOrcamento',
+          'Orçamento $orderId respondido: R\$ $valor');
+      return null;
+    } catch (e) {
+      _logger.error('OrderService', 'responderOrcamento', e.toString());
+      return 'Erro ao enviar orçamento';
+    }
   }
 }

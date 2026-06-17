@@ -30,4 +30,28 @@ class UserRepository extends BaseRepository<UserModel> {
     );
     return result.isNotEmpty;
   }
+  Future<void> atualizarPerfil(UserModel user) async {
+  final db = await dbHelper.database;
+  await db.update(
+    tableName,
+    {
+      'nome':     user.nome,
+      'email':    user.email,
+      'endereco': user.endereco,
+      'telefone': user.telefone,
+    },
+    where: 'id = ?',
+    whereArgs: [user.id],
+  );
+}
+
+Future<void> atualizarSenha(int userId, String novaSenha) async {
+  final db = await dbHelper.database;
+  await db.update(
+    tableName,
+    {'senha': novaSenha},
+    where: 'id = ?',
+    whereArgs: [userId],
+  );
+}
 }

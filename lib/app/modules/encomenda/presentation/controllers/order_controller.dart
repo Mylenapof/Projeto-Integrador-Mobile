@@ -25,6 +25,25 @@ class OrderController extends StateNotifier<List<OrderModel>> {
   }
 }
 
+// ── Controller para o admin ver/responder todas as encomendas ──
+class AdminOrderController extends StateNotifier<List<OrderModel>> {
+  final OrderService _service;
+
+  AdminOrderController(this._service) : super([]) {
+    carregar();
+  }
+
+  Future<void> carregar() async {
+    state = await _service.getTodas();
+  }
+
+  Future<String?> responderOrcamento(int orderId, double valor, String resposta) async {
+    final erro = await _service.responderOrcamento(orderId, valor, resposta);
+    if (erro == null) await carregar();
+    return erro;
+  }
+}
+
 // ── Providers ─────────────────────────────────────────────
 final orderServiceProvider = Provider<OrderService>((ref) => OrderService());
 
@@ -32,4 +51,9 @@ final orderControllerProvider =
     StateNotifierProvider<OrderController, List<OrderModel>>((ref) {
   final user = ref.watch(authControllerProvider);
   return OrderController(ref.read(orderServiceProvider), user?.id);
+});
+
+final adminOrderControllerProvider =
+    StateNotifierProvider<AdminOrderController, List<OrderModel>>((ref) {
+  return AdminOrderController(ref.read(orderServiceProvider));
 });

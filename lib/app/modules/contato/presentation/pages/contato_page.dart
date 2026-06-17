@@ -29,43 +29,31 @@ class ContatoPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSizes.lg),
-
             CustomListCard(
-              icon: Icons.phone_outlined,
-              titulo: 'Telefone',
-              subtitulo: '(11) 98765-4321',
-              onTap: () => _launch('tel:+5511987654321'),
-            ),
-            CustomListCard(
-              icon: Icons.mail_outline,
-              titulo: 'E-mail',
-              subtitulo: 'contato@lourenco.com.br',
-              onTap: () => _launch('mailto:contato@lourenco.com.br'),
+              icon: Icons.chat_outlined,
+              titulo: 'WhatsApp',
+              subtitulo: '(62) 98593-2521',
+              onTap: () => _launch('https://wa.me/5562985932521'),
             ),
             CustomListCard(
               icon: Icons.location_on_outlined,
               titulo: 'Endereço',
-              subtitulo: 'Rua das Flores, 123 - São Paulo, SP',
+              subtitulo:
+                  'Rua 619, nº 80, Qd 544, Lote 19 - Setor São José\n(toque para abrir no Google Maps)',
               onTap: () => _launch(
-                'https://maps.google.com/?q=Rua+das+Flores+123+São+Paulo'),
+                  'https://maps.google.com/?q=Rua+619+n80+Qd+544+Lote+19+Setor+São+José'),
             ),
             CustomListCard(
               icon: Icons.camera_alt_outlined,
               titulo: 'Instagram',
-              subtitulo: '@lourencoconfeitaria',
-              onTap: () => _launch('https://instagram.com/lourencoconfeitaria'),
+              subtitulo: '@andreialourencoconfeitaria',
+              onTap: () => _launch(
+                  'https://www.instagram.com/andreialourencoconfeitaria?igsh=dmhpMXRxMWtuaWFq'),
             ),
-            CustomListCard(
-              icon: Icons.chat_outlined,
-              titulo: 'WhatsApp',
-              subtitulo: '(11) 98765-4321',
-              onTap: () => _launch('https://wa.me/5511987654321'),
-            ),
-
             const SizedBox(height: AppSizes.xl),
             const Center(
               child: Text(
-                '© 2026 Lourenço Confeitaria.\nTodos os direitos reservados.',
+                '© 2026 Andreia Lourenço Confeitaria.\nTodos os direitos reservados.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: AppColors.textHint),
               ),

@@ -3,7 +3,7 @@ import '../../../core/helpers/database_helper.dart';
 class VendaRepository {
   final _db = DatabaseHelper.instance;
 
-  Future<void> registrarVenda({
+  Future<int> registrarVenda({
     required int userId,
     required double total,
     required double desconto,
@@ -33,6 +33,28 @@ class VendaRepository {
         'created_at':  DateTime.now().toIso8601String(),
       });
     }
+    return vendaId;
+  }
+
+  Future<void> registrarEntrega({
+    required int vendaId,
+    required String tipo,
+    String? endereco,
+    String? linkLocalizacao,
+    String? telefone,
+    String? observacoes,
+  }) async {
+    final db = await _db.database;
+    await db.insert('entregas', {
+      'venda_id':         vendaId,
+      'tipo':             tipo,
+      'endereco':         endereco,
+      'link_localizacao': linkLocalizacao,
+      'telefone':         telefone,
+      'observacoes':      observacoes,
+      'is_sync':          0,
+      'created_at':       DateTime.now().toIso8601String(),
+    });
   }
 
   Future<Map<String, dynamic>> getResumo() async {

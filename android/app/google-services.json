@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475229205870",
+    "project_id": "lourenco-confeitaria",
+    "storage_bucket": "lourenco-confeitaria.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475229205870:android:efd238c20f065e94f5bd7f",
+        "android_client_info": {
+          "package_name": "com.example.lourenco_confeitaria_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmLPwvyffnr640bzv9xshkdr2cpgpPnyg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

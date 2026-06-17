@@ -19,6 +19,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 
 import '../../data/order_model.dart';
 import '../controllers/order_controller.dart';
+import 'meus_pedidos_page.dart';
 
 class EncomendasPage extends ConsumerStatefulWidget {
   const EncomendasPage({super.key});
@@ -34,6 +35,9 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
   final _decoracaoController = TextEditingController();
   final _obsController       = TextEditingController();
   final _qtdPersonalizadaController = TextEditingController();
+  final _enderecoController  = TextEditingController();
+  final _linkController      = TextEditingController();
+  final _telefoneController  = TextEditingController();
 
   int     _tipoSelecionado = 0;
   String? _tipoProduto;
@@ -41,9 +45,14 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
   bool    _carregando = false;
 
   // ── Salgados ────────────────────────────────────────────
-  String? _categoriaSalgado;            // 'Fritos' ou 'Assados'
+  String? _categoriaSalgado;
   final Set<String> _saboresSelecionados = {};
-  String? _quantidadeSalgado;           // '100', '200', 'Personalizado'
+  String? _quantidadeSalgado;
+
+  // ── Entrega ─────────────────────────────────────────────
+  String _tipoEntrega = 'retirada';
+
+  static const _precoSalgadoUnidade = 1.0; // R$1 por salgado
 
   static const _tiposProduto = ['Bolo','Torta','Cupcakes','Docinhos','Outro'];
   static const _tamanhos     = ['Pequeno (10 fatias)','Médio (20 fatias)','Grande (30 fatias)','Personalizado'];
@@ -72,12 +81,24 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
     return [];
   }
 
+  int get _quantidadeNumerica {
+    if (_quantidadeSalgado == 'Personalizado') {
+      return int.tryParse(_qtdPersonalizadaController.text) ?? 0;
+    }
+    return int.tryParse(_quantidadeSalgado ?? '0') ?? 0;
+  }
+
+  double get _valorEstimadoSalgados => _quantidadeNumerica * _precoSalgadoUnidade;
+
   @override
   void dispose() {
     _saborController.dispose();
     _decoracaoController.dispose();
     _obsController.dispose();
     _qtdPersonalizadaController.dispose();
+    _enderecoController.dispose();
+    _linkController.dispose();
+    _telefoneController.dispose();
     super.dispose();
   }
 
@@ -93,14 +114,13 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
     String tipoProdutoFinal;
     String tamanhoFinal;
     String saborFinal;
+    double? valorEstimado;
 
     if (_tipoSelecionado == 0) {
-      // Encomenda personalizada
       tipoProdutoFinal = _tipoProduto ?? '';
       tamanhoFinal     = _tamanho ?? '';
       saborFinal       = _saborController.text;
     } else {
-      // Centos de salgados
       if (_categoriaSalgado == null) {
         showWarning(context, 'Selecione a categoria: Fritos ou Assados');
         return;
@@ -126,19 +146,34 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
 
       tipoProdutoFinal = _categoriaSalgado!;
       saborFinal       = _saboresSelecionados.join(', ');
+      valorEstimado    = _valorEstimadoSalgados;
+    }
+
+    if (_tipoEntrega == 'entrega' && _enderecoController.text.trim().isEmpty) {
+      showWarning(context, 'Informe o endereço de entrega');
+      return;
     }
 
     setState(() => _carregando = true);
 
     final order = OrderModel(
-      userId:      user.id!,
-      tipo:        _tipoSelecionado == 0 ? 'personalizada' : 'salgados',
-      tipoProduto: tipoProdutoFinal,
-      tamanho:     tamanhoFinal,
-      sabor:       saborFinal,
-      decoracao:   _decoracaoController.text,
-      observacoes: _obsController.text,
-      createdAt:   DateTime.now().toIso8601String(),
+      userId:          user.id!,
+      tipo:            _tipoSelecionado == 0 ? 'personalizada' : 'salgados',
+      tipoProduto:     tipoProdutoFinal,
+      tamanho:         tamanhoFinal,
+      sabor:           saborFinal,
+      decoracao:       _decoracaoController.text,
+      observacoes:     _obsController.text,
+      valorOrcamento:  valorEstimado, // salgados já vêm com valor calculado
+      status:          valorEstimado != null ? 'respondido' : 'pendente',
+      respostaAdmin:   valorEstimado != null
+          ? 'Valor calculado automaticamente: R\$ ${valorEstimado.toStringAsFixed(2).replaceAll('.', ',')}'
+          : null,
+      tipoEntrega:     _tipoEntrega,
+      endereco:        _tipoEntrega == 'entrega' ? _enderecoController.text.trim() : null,
+      linkLocalizacao: _linkController.text.trim().isEmpty ? null : _linkController.text.trim(),
+      telefone:        _telefoneController.text.trim(),
+      createdAt:       DateTime.now().toIso8601String(),
     );
 
     final erro = await ref.read(orderControllerProvider.notifier).enviar(order);
@@ -150,8 +185,10 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
     } else {
       await CustomSuccessDialog.show(
         context,
-        titulo: 'Encomenda enviada!',
-        mensagem: 'Recebemos sua encomenda.\nEntraremos em contato em breve para confirmar.',
+        titulo: _tipoSelecionado == 1 ? 'Encomenda enviada!' : 'Pedido de orçamento enviado!',
+        mensagem: _tipoSelecionado == 1
+            ? 'Centos de salgados confirmados! Valor: R\$ ${valorEstimado?.toStringAsFixed(2).replaceAll('.', ',')}.\nAcompanhe em "Meus Pedidos".'
+            : 'Recebemos sua solicitação. Em breve enviaremos o orçamento.\nAcompanhe a resposta em "Meus Pedidos".',
       );
       _resetForm();
     }
@@ -164,11 +201,15 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
       _categoriaSalgado    = null;
       _quantidadeSalgado   = null;
       _saboresSelecionados.clear();
+      _tipoEntrega         = 'retirada';
     });
     _saborController.clear();
     _decoracaoController.clear();
     _obsController.clear();
     _qtdPersonalizadaController.clear();
+    _enderecoController.clear();
+    _linkController.clear();
+    _telefoneController.clear();
   }
 
   @override
@@ -176,7 +217,19 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const CustomAppDrawer(),
-      appBar: const CustomAppBar(title: 'Lourenço'),
+      appBar: CustomAppBar(
+        title: 'Lourenço',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.primary),
+            tooltip: 'Meus Pedidos',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MeusPedidosPage()),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.md),
         child: Form(
@@ -199,10 +252,9 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
               ),
               const SizedBox(height: AppSizes.lg),
 
-              // Seleção de tipo
               _TipoCard(
                 titulo: 'Encomenda Personalizada',
-                subtitulo: 'Bolos, tortas e doces especiais sob medida',
+                subtitulo: 'Bolos, tortas e doces especiais — receba um orçamento',
                 icon: Icons.cake_outlined,
                 selecionado: _tipoSelecionado == 0,
                 onTap: () => setState(() {
@@ -214,7 +266,7 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
               const SizedBox(height: AppSizes.sm + 2),
               _TipoCard(
                 titulo: 'Centos de Salgados',
-                subtitulo: 'Salgados fritos e assados para eventos',
+                subtitulo: 'Preço fixo: R\$ 1,00 por unidade',
                 icon: Icons.restaurant_outlined,
                 selecionado: _tipoSelecionado == 1,
                 onTap: () => setState(() {
@@ -247,8 +299,27 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                     ),
                     const SizedBox(height: AppSizes.md),
 
-                    // Campos personalizada
                     if (_tipoSelecionado == 0) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSizes.sm + 4),
+                        margin: const EdgeInsets.only(bottom: AppSizes.sm + 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfacePink,
+                          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: AppColors.primary, size: 18),
+                            SizedBox(width: AppSizes.sm),
+                            Expanded(
+                              child: Text(
+                                'Esse tipo de encomenda não tem preço fixo. Você receberá um orçamento personalizado.',
+                                style: TextStyle(fontSize: AppSizes.fontXs, color: AppColors.textSecondary),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       CustomDropdown<String>(
                         label: 'Tipo de Produto',
                         value: _tipoProduto,
@@ -284,7 +355,6 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                       ),
                     ],
 
-                    // Campos salgados
                     if (_tipoSelecionado == 1) ...[
                       const Text(
                         'Categoria',
@@ -324,7 +394,6 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                       ),
                       const SizedBox(height: AppSizes.md),
 
-                      // Sabores
                       if (_categoriaSalgado != null) ...[
                         const Text(
                           'Sabores (selecione um ou mais)',
@@ -353,18 +422,12 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                               backgroundColor: AppColors.surface,
                               selectedColor: AppColors.primary,
                               labelStyle: TextStyle(
-                                color: selecionado
-                                    ? AppColors.surface
-                                    : AppColors.textSecondary,
+                                color: selecionado ? AppColors.surface : AppColors.textSecondary,
                                 fontSize: AppSizes.fontXs,
-                                fontWeight: selecionado
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
+                                fontWeight: selecionado ? FontWeight.w600 : FontWeight.normal,
                               ),
                               side: BorderSide(
-                                color: selecionado
-                                    ? AppColors.primary
-                                    : AppColors.surfacePink,
+                                color: selecionado ? AppColors.primary : AppColors.surfacePink,
                               ),
                               showCheckmark: false,
                             );
@@ -373,7 +436,6 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                         const SizedBox(height: AppSizes.md),
                       ],
 
-                      // Quantidade
                       const Text(
                         'Quantidade',
                         style: TextStyle(
@@ -395,24 +457,17 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                             backgroundColor: AppColors.surface,
                             selectedColor: AppColors.primary,
                             labelStyle: TextStyle(
-                              color: selecionado
-                                  ? AppColors.surface
-                                  : AppColors.textSecondary,
+                              color: selecionado ? AppColors.surface : AppColors.textSecondary,
                               fontSize: AppSizes.fontXs,
-                              fontWeight: selecionado
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                              fontWeight: selecionado ? FontWeight.w600 : FontWeight.normal,
                             ),
                             side: BorderSide(
-                              color: selecionado
-                                  ? AppColors.primary
-                                  : AppColors.surfacePink,
+                              color: selecionado ? AppColors.primary : AppColors.surfacePink,
                             ),
                           );
                         }).toList(),
                       ),
 
-                      // Campo de quantidade personalizada
                       if (_quantidadeSalgado == 'Personalizado') ...[
                         const SizedBox(height: AppSizes.sm + 4),
                         CustomTextField(
@@ -420,13 +475,46 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                           label: 'Quantidade de salgados',
                           hint: 'Ex: 350',
                           keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ],
+
+                      // Valor estimado
+                      if (_quantidadeNumerica > 0) ...[
+                        const SizedBox(height: AppSizes.md),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSizes.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfacePink,
+                            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Valor total',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'R\$ ${_valorEstimadoSalgados.toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: AppSizes.fontLg,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
 
                       const SizedBox(height: AppSizes.sm + 4),
                     ],
 
-                    // OBSERVAÇÕES
                     CustomTextField(
                       controller: _obsController,
                       label: 'Observações Adicionais',
@@ -435,8 +523,63 @@ class _EncomendasPageState extends ConsumerState<EncomendasPage>
                       alignLabelWithHint: true,
                     ),
                     const SizedBox(height: AppSizes.lg),
+
+                    // Entrega ou retirada
+                    const Text(
+                      'Entrega ou Retirada',
+                      style: TextStyle(
+                        fontSize: AppSizes.fontLg,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.sm + 4),
+
+                    _OpcaoEntregaCard(
+                      icon: Icons.storefront_outlined,
+                      titulo: 'Retirar na loja',
+                      subtitulo: 'Rua 619, nº 80, Qd 544, Lote 19 - Setor São José',
+                      selecionado: _tipoEntrega == 'retirada',
+                      onTap: () => setState(() => _tipoEntrega = 'retirada'),
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    _OpcaoEntregaCard(
+                      icon: Icons.delivery_dining_outlined,
+                      titulo: 'Receber em casa',
+                      subtitulo: 'Entregamos no endereço informado',
+                      selecionado: _tipoEntrega == 'entrega',
+                      onTap: () => setState(() => _tipoEntrega = 'entrega'),
+                    ),
+
+                    if (_tipoEntrega == 'entrega') ...[
+                      const SizedBox(height: AppSizes.sm + 4),
+                      CustomTextField(
+                        controller: _enderecoController,
+                        label: 'Endereço completo',
+                        hint: 'Rua, número, bairro, cidade',
+                        prefixIcon: Icons.location_on_outlined,
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: AppSizes.sm + 4),
+                      CustomTextField(
+                        controller: _linkController,
+                        label: 'Link da localização (opcional)',
+                        hint: 'Cole o link do Google Maps',
+                        prefixIcon: Icons.map_outlined,
+                      ),
+                    ],
+                    const SizedBox(height: AppSizes.sm + 4),
+                    CustomTextField(
+                      controller: _telefoneController,
+                      label: 'Telefone para contato',
+                      hint: '(62) 99999-9999',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
+
+                    const SizedBox(height: AppSizes.lg),
                     CustomPrimaryButton(
-                      text: 'Enviar Encomenda',
+                      text: _tipoSelecionado == 1 ? 'Confirmar Encomenda' : 'Solicitar Orçamento',
                       icon: Icons.send_outlined,
                       isLoading: _carregando,
                       onPressed: _enviar,
@@ -525,7 +668,7 @@ class _TipoCard extends StatelessWidget {
   }
 }
 
-// ── Card de categoria do salgado (Fritos / Assados) ───────
+// ── Card de categoria do salgado ──────────────────────────
 class _CategoriaSalgadoCard extends StatelessWidget {
   final String titulo;
   final IconData icon;
@@ -566,6 +709,78 @@ class _CategoriaSalgadoCard extends StatelessWidget {
                 color: selecionado ? AppColors.surface : AppColors.textPrimary,
                 fontSize: AppSizes.fontSm,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card de entrega/retirada ──────────────────────────────
+class _OpcaoEntregaCard extends StatelessWidget {
+  final IconData icon;
+  final String titulo;
+  final String subtitulo;
+  final bool selecionado;
+  final VoidCallback onTap;
+
+  const _OpcaoEntregaCard({
+    required this.icon,
+    required this.titulo,
+    required this.subtitulo,
+    required this.selecionado,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          border: Border.all(
+            color: selecionado ? AppColors.primary : AppColors.surfacePink,
+            width: selecionado ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: selecionado ? AppColors.primary : AppColors.surfacePink,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon,
+                  color: selecionado ? AppColors.surface : AppColors.primary,
+                  size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: selecionado ? AppColors.primary : AppColors.textPrimary,
+                      )),
+                  const SizedBox(height: 2),
+                  Text(subtitulo,
+                      style: const TextStyle(
+                        fontSize: AppSizes.fontXs,
+                        color: AppColors.textSecondary,
+                      )),
+                ],
+              ),
+            ),
+            Icon(
+              selecionado ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: selecionado ? AppColors.primary : AppColors.textHint,
             ),
           ],
         ),

@@ -9,6 +9,8 @@ import 'package:lourenco_confeitaria_app/app/modules/produto/data/product_model.
 import '../../data/recompensa_model.dart';
 import 'relatorio_page.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import 'orcamentos_page.dart';
+
 class AdminPage extends ConsumerStatefulWidget {
   const AdminPage({super.key});
 
@@ -22,6 +24,7 @@ class _AdminPageState extends ConsumerState<AdminPage>
   List<ProductModel> _produtos = [];
   List<RecompensaModel> _recompensas = [];
   bool _carregando = false;
+  String? _telaSelecionada; // null = menu inicial
 
   @override
   void initState() {
@@ -193,6 +196,7 @@ class _AdminPageState extends ConsumerState<AdminPage>
                     label: 'Produtos',
                     onTap: () {
                       Navigator.pop(context);
+                      setState(() => _telaSelecionada = 'produtos');
                       _tabController.animateTo(0);
                     },
                   ),
@@ -201,7 +205,21 @@ class _AdminPageState extends ConsumerState<AdminPage>
                     label: 'Recompensas',
                     onTap: () {
                       Navigator.pop(context);
+                      setState(() => _telaSelecionada = 'recompensas');
                       _tabController.animateTo(1);
+                    },
+                  ),
+                  _DrawerAdminItem(
+                    icon: Icons.assignment_outlined,
+                    label: 'Orçamentos',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OrcamentosPage(),
+                        ),
+                      );
                     },
                   ),
                   _DrawerAdminItem(
@@ -229,7 +247,7 @@ class _AdminPageState extends ConsumerState<AdminPage>
                 child: OutlinedButton.icon(
                   onPressed: () {
                     ref.read(adminControllerProvider.notifier).logout();
-                    Navigator.pop(context); // fecha drawer
+                    Navigator.pop(context);
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
@@ -257,61 +275,112 @@ class _AdminPageState extends ConsumerState<AdminPage>
       ),
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.primary),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'Painel Admin',
-          style: TextStyle(
+        leading: _telaSelecionada == null
+            ? Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu, color: AppColors.primary),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                onPressed: () => setState(() => _telaSelecionada = null),
+              ),
+        title: Text(
+          _telaSelecionada == null ? 'Painel Admin' : 'Produtos & Recompensas',
+          style: const TextStyle(
             color: AppColors.primary,
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart, color: AppColors.primary),
-            tooltip: 'Relatório de Vendas',
-            onPressed: () => Navigator.push(
+        bottom: _telaSelecionada == null
+            ? null
+            : TabBar(
+                controller: _tabController,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.primary,
+                tabs: const [
+                  Tab(icon: Icon(Icons.cake_outlined), text: 'Produtos'),
+                  Tab(icon: Icon(Icons.star_outline), text: 'Recompensas'),
+                ],
+              ),
+      ),
+      body: _telaSelecionada == null
+          ? _buildMenuInicial()
+          : (_carregando
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildProdutos(),
+                    _buildRecompensas(),
+                  ],
+                )),
+      floatingActionButton: _telaSelecionada == null
+          ? null
+          : FloatingActionButton(
+              backgroundColor: AppColors.primary,
+              onPressed: () {
+                if (_tabController.index == 0) {
+                  _abrirFormProduto();
+                } else {
+                  _abrirFormRecompensa();
+                }
+              },
+              child: const Icon(Icons.add, color: AppColors.surface),
+            ),
+    );
+  }
+
+  Widget _buildMenuInicial() {
+    return Padding(
+      padding: const EdgeInsets.all(AppSizes.md),
+      child: GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSizes.sm + 4,
+        mainAxisSpacing: AppSizes.sm + 4,
+        childAspectRatio: 1.0,
+        children: [
+          _MenuAdminCard(
+            icon: Icons.cake_outlined,
+            titulo: 'Produtos',
+            subtitulo: 'Gerenciar cardápio',
+            onTap: () {
+              setState(() => _telaSelecionada = 'produtos');
+              _tabController.animateTo(0);
+            },
+          ),
+          _MenuAdminCard(
+            icon: Icons.star_outline,
+            titulo: 'Recompensas',
+            subtitulo: 'Fidelidade',
+            onTap: () {
+              setState(() => _telaSelecionada = 'recompensas');
+              _tabController.animateTo(1);
+            },
+          ),
+          _MenuAdminCard(
+            icon: Icons.assignment_outlined,
+            titulo: 'Orçamentos',
+            subtitulo: 'Encomendas pendentes',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OrcamentosPage()),
+            ),
+          ),
+          _MenuAdminCard(
+            icon: Icons.bar_chart,
+            titulo: 'Relatório',
+            subtitulo: 'Vendas e estatísticas',
+            onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const RelatorioPage()),
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          tabs: const [
-            Tab(icon: Icon(Icons.cake_outlined), text: 'Produtos'),
-            Tab(icon: Icon(Icons.star_outline), text: 'Recompensas'),
-          ],
-        ),
-      ),
-      body: _carregando
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildProdutos(),
-                _buildRecompensas(),
-              ],
-            ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        onPressed: () {
-          if (_tabController.index == 0) {
-            _abrirFormProduto();
-          } else {
-            _abrirFormRecompensa();
-          }
-        },
-        child: const Icon(Icons.add, color: AppColors.surface),
       ),
     );
   }
@@ -485,6 +554,66 @@ class _AdminPageState extends ConsumerState<AdminPage>
       );
 }
 
+// ── Card do menu inicial ───────────────────────────────────
+class _MenuAdminCard extends StatelessWidget {
+  final IconData icon;
+  final String titulo;
+  final String subtitulo;
+  final VoidCallback onTap;
+
+  const _MenuAdminCard({
+    required this.icon,
+    required this.titulo,
+    required this.subtitulo,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          border: Border.all(color: AppColors.surfacePink),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: const BoxDecoration(
+                color: AppColors.surfacePink,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 28),
+            ),
+            const SizedBox(height: AppSizes.sm + 4),
+            Text(
+              titulo,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                fontSize: AppSizes.fontMd,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitulo,
+              style: const TextStyle(
+                fontSize: AppSizes.fontXs,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Drawer Item ───────────────────────────────────────────
 class _DrawerAdminItem extends StatelessWidget {
   final IconData icon;
@@ -601,8 +730,6 @@ class _FormProdutoState extends State<_FormProduto> {
               ],
             ),
             const SizedBox(height: AppSizes.md),
-
-            // Preview da imagem
             if (_imagemController.text.isNotEmpty) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
@@ -623,7 +750,6 @@ class _FormProdutoState extends State<_FormProduto> {
               ),
               const SizedBox(height: AppSizes.md),
             ],
-
             _campo(_nomeController, 'Nome do produto'),
             const SizedBox(height: AppSizes.sm + 4),
             _campo(_descricaoController, 'Descrição'),
@@ -641,7 +767,6 @@ class _FormProdutoState extends State<_FormProduto> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSizes.sm + 4),
-
             DropdownButtonFormField<int>(
               value: _categoriaSelecionada,
               decoration: _inputDecoration('Categoria'),
@@ -654,7 +779,6 @@ class _FormProdutoState extends State<_FormProduto> {
               onChanged: (v) => setState(() => _categoriaSelecionada = v!),
             ),
             const SizedBox(height: AppSizes.sm + 4),
-
             Row(
               children: [
                 const Text('Disponível',
@@ -668,7 +792,6 @@ class _FormProdutoState extends State<_FormProduto> {
               ],
             ),
             const SizedBox(height: AppSizes.md),
-
             SizedBox(
               width: double.infinity,
               height: AppSizes.buttonHeight,

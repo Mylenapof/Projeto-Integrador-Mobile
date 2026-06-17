@@ -155,7 +155,7 @@ class _CardapioPageState extends ConsumerState<CardapioPage>
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSizes.sm + 4,
                     mainAxisSpacing: AppSizes.sm + 4,
-                    childAspectRatio: 0.72,
+                    childAspectRatio: 0.60,
                   ),
                   itemCount: filtrados.length,
                   itemBuilder: (context, i) {

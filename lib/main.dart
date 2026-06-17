@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'app.dart';
-import 'app/core/logging/log_service.dart';
+import 'app/core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializa sistema de log centralizado
-  await LogService.initialize();
+  await Firebase.initializeApp();
+  await NotificationService.instance.initialize();
 
   runApp(
     const ProviderScope(

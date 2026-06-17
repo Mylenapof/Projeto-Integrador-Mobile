@@ -112,7 +112,7 @@ class HomePage extends ConsumerWidget {
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSizes.sm + 4,
                     mainAxisSpacing: AppSizes.sm + 4,
-                    childAspectRatio: 0.75,
+                    childAspectRatio: 0.68,
                   ),
                   itemCount: destaques.length,
                   itemBuilder: (context, i) {

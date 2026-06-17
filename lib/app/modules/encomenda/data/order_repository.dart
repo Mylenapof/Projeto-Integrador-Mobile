@@ -18,4 +18,38 @@ class OrderRepository extends BaseRepository<OrderModel> {
     );
     return result.map(fromMap).toList();
   }
+
+  Future<List<OrderModel>> findTodas() async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      tableName,
+      orderBy: 'created_at DESC',
+    );
+    return result.map(fromMap).toList();
+  }
+
+  Future<List<OrderModel>> findPendentes() async {
+    final db = await dbHelper.database;
+    final result = await db.query(
+      tableName,
+      where: 'status = ?',
+      whereArgs: ['pendente'],
+      orderBy: 'created_at DESC',
+    );
+    return result.map(fromMap).toList();
+  }
+
+  Future<void> responderOrcamento(int orderId, double valor, String resposta) async {
+    final db = await dbHelper.database;
+    await db.update(
+      tableName,
+      {
+        'status':          'respondido',
+        'valor_orcamento': valor,
+        'resposta_admin':  resposta,
+      },
+      where: 'id = ?',
+      whereArgs: [orderId],
+    );
+  }
 }
